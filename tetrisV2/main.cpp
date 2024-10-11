@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 // ==============================================
 // main.cpp [テトリスV2]
 // 
@@ -21,7 +22,14 @@
 #define HOLD_HEIGHT	(7)		//HOLDマップの高さ
 
 //テトリミノ関連
-#define MINO_TYPE	(7)		//テトリミノの種類
+#define MINO_MAX	(7)		//テトリミノの種類
+#define MINO_I		(0)		//Iミノ
+#define MINO_O		(1)		//Oミノ
+#define MINO_S		(2)		//Sミノ
+#define MINO_Z		(3)		//Zミノ
+#define MINO_J		(4)		//Jミノ
+#define MINO_L		(5)		//Lミノ
+#define MINO_T		(6)		//Tミノ
 #define CHUNK_SIZE	(4)		//１つのテトリミノのパターンを保存する領域(正方形)の一辺の長さ
 #define COLOR_CYAN		(0)
 #define COLOR_YELLOW	(1)
@@ -32,11 +40,15 @@
 #define COLOR_MAGENTA	(6)
 
 // ==============================================
+// プロトタイプ宣言
+// ==============================================
+
+// ==============================================
 // 構造体宣言
 // ==============================================
 struct MINO_ORIGIN
 {
-	int  color; //色
+	int	 color; //色
 	char pattern[4][4]; //形
 };
 
@@ -53,7 +65,7 @@ struct MINO_BLOCK
 // ==============================================
 int main(void)
 {
-
+	
 }
 
 // ==============================================
