@@ -91,7 +91,7 @@ struct NEXTMINO
 int GameMain(int);
 struct MAP	InitializeMap();
 struct NEXTMINO InitializeNextMino();
-struct MINO	SetMino(int);
+struct MINO	CreateMino(int);
 struct NEXTMINO AddNextMino(NEXTMINO);
 void UpdateScreen(MAP, MINO);
 bool CanMove(char[MAIN_HEIGHT][MAIN_WIDTH], char[MINO_SIZE][MINO_SIZE], int, int);
@@ -257,7 +257,7 @@ struct NEXTMINO InitializeNextMino()
 
 		for (int j = 0; j < MINO_MAX; j++)
 		{
-			next.minoQueue[next.queueNum] = SetMino(data[j]);
+			next.minoQueue[next.queueNum] = CreateMino(data[j]);
 			next.queueNum++;
 		}
 	}
@@ -280,7 +280,7 @@ struct NEXTMINO AddNextMino(NEXTMINO next)
 
 	for (int j = 0; j < MINO_MAX; j++)
 	{
-		next.minoQueue[next.queueNum] = SetMino(data[j]);
+		next.minoQueue[next.queueNum] = CreateMino(data[j]);
 		next.queueNum++;
 	}
 
@@ -290,7 +290,7 @@ struct NEXTMINO AddNextMino(NEXTMINO next)
 // ==============================================
 // テトリミノデータ変更関数
 // ==============================================
-struct MINO	SetMino(int minoType)
+struct MINO	CreateMino(int minoType)
 {
 	MINO mino = { 0 };
 
