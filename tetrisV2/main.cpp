@@ -79,9 +79,9 @@ struct MINO
 	int  rotation;	//角度
 };
 
-struct NEXTMINO
+struct NEXTQUEUE
 {
-	MINO minoQueue[NEXT_QUEUE_SIZE];
+	MINO mino[NEXT_QUEUE_SIZE];
 	int queueNum;					//キューの個数
 };
 
@@ -90,10 +90,11 @@ struct NEXTMINO
 // ==============================================
 int GameMain(int);
 struct MAP	InitializeMap();
-struct NEXTMINO InitializeNextMino();
+struct NEXTQUEUE InitializeNextMino();
 struct MINO	CreateMino(int);
-struct NEXTMINO AddNextMino(NEXTMINO);
-void UpdateScreen(MAP, MINO);
+struct MINO ChangePlayerMino(NEXTQUEUE);
+struct NEXTQUEUE AddNextQueue(NEXTQUEUE);
+void RenderScreen(MAP, MINO);
 bool CanMove(char[MAIN_HEIGHT][MAIN_WIDTH], char[MINO_SIZE][MINO_SIZE], int, int);
 void OutputChar(char);
 void ShuffleArray(int array[], int size);
@@ -120,15 +121,15 @@ int GameMain(int)
 
 	//変数宣言
 	bool placeMinoFlg = false;	//テトリミノ設置処理を行うかどうか
-	MINO holdMino;				//ホールドのミノを保存する
-	bool canHoldFlg = false;		//ホールドが可能かどうか
-	bool holdEmptyFlg = true;		//ホールドが空かどうか
+	bool canHoldFlg = false;	//ホールドが可能かどうか
+	bool holdEmptyFlg = true;	//ホールドが空かどうか
+	MINO holdMino;				//ホールドのミノ
 
-	MAP	gameMap = InitializeMap();			//マップ生成
-	NEXTMINO nextMino = InitializeNextMino();	//テトリミノの抽選
-	MINO playerMino = nextMino.minoQueue[0]; //テトリミノのツモ
+	MAP	gameMap = InitializeMap();				//マップ生成
+	NEXTQUEUE nextQueue = InitializeNextMino();	//ネクストミノ生成
+	MINO playerMino = ChangePlayerMino(nextQueue);	//テトリミノのツモ
 	
-	UpdateScreen(gameMap, playerMino);
+	RenderScreen(gameMap, playerMino);
 
 	//////////////////////////////
 	/////////ゲームループ/////////
@@ -180,15 +181,26 @@ int GameMain(int)
 
 			case 'c':
 			case 'l':
+				//ホールド処理
+				if (canHoldFlg)
+				{
+					if (holdEmptyFlg)
+					{
+						holdMino = playerMino;
+					}
+					else
+					{
+
+					}
+
+				}
 
 				break;
 
 			}
 
-			UpdateScreen(gameMap, playerMino);
+			RenderScreen(gameMap, playerMino);
 		}
-
-
 		
 	}
 
@@ -202,7 +214,11 @@ struct MAP InitializeMap()
 {
 	MAP gameMap = { 0 };
 
-	//メインマップに壁・地面を配置する
+	//////////////////
+	// メインマップ //
+	//////////////////
+
+	// 壁・地面を配置する
 	for (int i = 0; i < MAIN_HEIGHT; i++)
 	{
 		for (int j = 0; j < MAIN_WIDTH; j++)
@@ -210,6 +226,12 @@ struct MAP InitializeMap()
 			if (j == 0 || j == MAIN_WIDTH - 1 || i == MAIN_HEIGHT - 1)
 				gameMap.main[i][j] = 1;
 		}
+	}
+
+	//ゲームオーバーラインの書き込み
+	for (int i = 0; i < MAIN_WIDTH - 2; i++)
+	{
+		gameMap.main[GAMEOVER_LINE_HEIGHT][i + 1] = CHAR_BAR;
 	}
 
 	//NEXTマップに外壁を配置する
@@ -234,15 +256,17 @@ struct MAP InitializeMap()
 		}
 	}
 
+
+
 	return gameMap;
 }
 
 // ==============================================
 // ネクストミノ初期化関数
 // ==============================================
-struct NEXTMINO InitializeNextMino()
+struct NEXTQUEUE InitializeNextMino()
 {
-	NEXTMINO next = { 0 };
+	NEXTQUEUE next = { 0 };
 	
 	for (int i = 0; i < 2; i++)
 	{
@@ -257,7 +281,7 @@ struct NEXTMINO InitializeNextMino()
 
 		for (int j = 0; j < MINO_MAX; j++)
 		{
-			next.minoQueue[next.queueNum] = CreateMino(data[j]);
+			next.mino[next.queueNum] = CreateMino(data[j]);
 			next.queueNum++;
 		}
 	}
@@ -265,9 +289,32 @@ struct NEXTMINO InitializeNextMino()
 }
 
 // ==============================================
+// 操作するテトリミノの変更を行う関数
+// ==============================================
+struct MINO ChangePlayerMino(NEXTQUEUE nextQueue)
+{
+	MINO nextMino = nextQueue.mino[0]; //NEXTの先頭のテトリミノを除列
+
+	nextQueue.queueNum--; //除列したので-1
+
+	for (int i = 0; i < nextQueue.queueNum; i++)
+	{
+		nextQueue.mino[i] = nextQueue.mino[i + 1]; //すべてのNEXTミノを１個前に進める
+	}
+
+	if (NEXT_QUEUE_SIZE - nextQueue.queueNum >= 7)
+	{	//ネクストの列の空き数が7個になったら
+		//ネクストを補充する
+		nextQueue = AddNextQueue(nextQueue); //一度の補充で7個のミノを作る
+	}
+
+	return nextMino; //NEXTの先頭にあったテトリミノをplayerMinoに渡す
+}
+
+// ==============================================
 // ネクストミノ抽選関数
 // ==============================================
-struct NEXTMINO AddNextMino(NEXTMINO next)
+struct NEXTQUEUE AddNextQueue(NEXTQUEUE nextQueue)
 {
 	int data[MINO_MAX];
 
@@ -280,15 +327,15 @@ struct NEXTMINO AddNextMino(NEXTMINO next)
 
 	for (int j = 0; j < MINO_MAX; j++)
 	{
-		next.minoQueue[next.queueNum] = CreateMino(data[j]);
-		next.queueNum++;
+		nextQueue.mino[nextQueue.queueNum] = CreateMino(data[j]);
+		nextQueue.queueNum++;
 	}
 
-	return next;
+	return nextQueue;
 }
 
 // ==============================================
-// テトリミノデータ変更関数
+// テトリミノ作成関数
 // ==============================================
 struct MINO	CreateMino(int minoType)
 {
@@ -364,7 +411,7 @@ struct MINO	CreateMino(int minoType)
 // ==============================================
 // 画面出力関数
 // ==============================================
-void UpdateScreen(MAP gameMap, MINO minoData)
+void RenderScreen(MAP gameMap, MINO playerMino)
 {
 	char displayBuffer[WINDOW_HEIGHT][WINDOW_WIDTH] = { 0 };
 
@@ -381,19 +428,13 @@ void UpdateScreen(MAP gameMap, MINO minoData)
 		}
 	}
 
-	//ゲームオーバーラインの書き込み
-	for (int i = 0; i < MAIN_WIDTH - 2; i++)
-	{
-		displayBuffer[GAMEOVER_LINE_HEIGHT][HOLD_WIDTH + i] = CHAR_BAR;
-	}
-
 	//操作中のテトリミノの書き込み
 	for (int i = 0; i < MINO_SIZE; i++)
 	{
 		for (int j = 0; j < MINO_SIZE; j++)
 		{
-			if (minoData.shape[i][j] != 0)
-				displayBuffer[i + minoData.y][j + HOLD_WIDTH - 1 + minoData.x] = minoData.color;
+			if (playerMino.shape[i][j] != 0)
+				displayBuffer[i + playerMino.y][j + HOLD_WIDTH - 1 + playerMino.x] = playerMino.color;
 		}
 	}
 
@@ -447,9 +488,13 @@ bool CanMove(char mainMap[MAIN_HEIGHT][MAIN_WIDTH], char sourceShape[MINO_SIZE][
 	{
 		for (j = 0; j < MINO_SIZE; j++)
 		{
-			if (sourceShape[i][j] != 0 &&					//チャンクの中でブロックがある場所が
-				mainMap[futurePosY + i][futurePosX + j] != 0)	//移動先のmap上で空白(0)じゃなかったら
-				return false;									//falseを返す
+			//テトリミノの中でブロックがある場所が
+			//空白(0)もしくはゲームオーバーライン(9)じゃなかったら
+			//falseを返す
+			if (sourceShape[i][j] != 0 &&
+				mainMap[futurePosY + i][futurePosX + j] != CHAR_NULL &&
+				mainMap[futurePosY + i][futurePosX + j] != CHAR_BAR)
+				return false;
 		}
 	}
 
