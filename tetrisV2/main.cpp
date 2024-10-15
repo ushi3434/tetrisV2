@@ -70,10 +70,15 @@ struct MAP
 	char hold[HOLD_HEIGHT][HOLD_WIDTH] = { 0 }; //HOLDマップ
 };
 
+struct BASIC_MINO
+{ 
+	char shape[MINO_SIZE][MINO_SIZE]; //形
+	int  color; //色
+};
+
 struct MINO
 {
-	char shape[MINO_SIZE][MINO_SIZE];	//パターン
-	int  color;		//色
+	BASIC_MINO basicInfo; //ミノの基本情報
 	int	 x;			//X座標
 	int	 y;			//Y座標
 	int  rotation;	//角度
