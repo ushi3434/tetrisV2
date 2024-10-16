@@ -70,24 +70,19 @@ struct MAP
 	char hold[HOLD_HEIGHT][HOLD_WIDTH] = { 0 }; //HOLDマップ
 };
 
-struct BASIC_MINO
-{ 
-	char shape[MINO_SIZE][MINO_SIZE]; //形
-	int  color; //色
-};
-
 struct MINO
 {
-	BASIC_MINO basicInfo; //ミノの基本情報
+	int  type;		//テトリミノのタイプ
 	int	 x;			//X座標
 	int	 y;			//Y座標
 	int  rotation;	//角度
+	char shape[MINO_SIZE][MINO_SIZE];		//形
 };
 
 struct NEXTQUEUE
 {
-	MINO mino[NEXT_QUEUE_SIZE];
-	int queueNum;					//キューの個数
+	int type[NEXT_QUEUE_SIZE];	//テトリミノのタイプ
+	int queueNum;				//キューの個数
 };
 
 // ==============================================
@@ -128,7 +123,7 @@ int GameMain(int)
 	bool placeMinoFlg = false;	//テトリミノ設置処理を行うかどうか
 	bool canHoldFlg = false;	//ホールドが可能かどうか
 	bool holdEmptyFlg = true;	//ホールドが空かどうか
-	MINO holdMino;				//ホールドのミノ
+	int  holdMinoType;			//ホールドのミノタイプ
 
 	MAP	gameMap = InitializeMap();				//マップ生成
 	NEXTQUEUE nextQueue = InitializeNextMino();	//ネクストミノ生成
@@ -164,19 +159,19 @@ int GameMain(int)
 
 			case 'a':
 				//左移動
-				if (CanMove(gameMap.main, playerMino.shape, playerMino.x - 1, playerMino.y))
+				if (CanMove(gameMap.main, playerMino.basicInfo.shape, playerMino.x - 1, playerMino.y))
 					playerMino.x--;
 				break;
 
 			case 'd':
 				//右移動
-				if (CanMove(gameMap.main, playerMino.shape, playerMino.x + 1, playerMino.y))
+				if (CanMove(gameMap.main, playerMino.basicInfo.shape, playerMino.x + 1, playerMino.y))
 					playerMino.x++;
 				break;
 
 			case 's':
 				//下移動
-				if (CanMove(gameMap.main, playerMino.shape, playerMino.x, playerMino.y + 1))
+				if (CanMove(gameMap.main, playerMino.basicInfo.shape, playerMino.x, playerMino.y + 1))
 					playerMino.y++;
 				break;
 
