@@ -39,15 +39,7 @@
 #define MINO_L		(5)		//Lミノ
 #define MINO_T		(6)		//Tミノ
 #define MINO_SIZE	(4)		//１つのテトリミノのパターンを保存する領域(正方形)の一辺の長さ
-#define COLOR_CYAN		(2)
-#define COLOR_YELLOW	(3)
-#define COLOR_GREEN		(4)
-#define COLOR_RED		(5)
-#define COLOR_BLUE		(6)
-#define COLOR_WHITE		(7)
-#define COLOR_MAGENTA	(8)
 #define NEXT_QUEUE_SIZE (14) //次のテトリミノの種類を保存するキューのサイズ
-
 
 //ゲームルール関連
 #define GAMEOVER_LINE_HEIGHT (2) //ゲームオーバーラインのＹ座標
@@ -55,47 +47,64 @@
 #define MINOSTART_Y (0) //テトリミノのスポーン地点(Y座標)
 
 //文字出力関連
-#define CHAR_NULL	(0)	//全角スペース
-#define CHAR_SQUARE (1)	//■
-#define CHAR_BAR	(9)	//━
+#define CHAR_NULL			(0)	//全角スペース
+#define CHAR_BLOCK			(1)	//■(無色)
+#define CHAR_BLOCK_CYAN		(2)
+#define CHAR_BLOCK_YELLOW	(3)
+#define CHAR_BLOCK_GREEN	(4)
+#define CHAR_BLOCK_RED		(5)
+#define CHAR_BLOCK_BLUE		(6)
+#define CHAR_BLOCK_WHITE	(7)
+#define CHAR_BLOCK_MAGENTA	(8)
+#define CHAR_BAR			(9)	//━
+
 
 
 // ==============================================
 // 構造体宣言
 // ==============================================
-struct MAP
+struct BASIC_MINO
 {
-	char main[MAIN_HEIGHT][MAIN_WIDTH] = { 0 }; //メインマップ
-	char next[NEXT_HEIGHT][NEXT_WIDTH] = { 0 }; //NEXTマップ
-	char hold[HOLD_HEIGHT][HOLD_WIDTH] = { 0 }; //HOLDマップ
+	int type;		//テトリミノのタイプ
+	char shape[MINO_SIZE][MINO_SIZE];	//テトリミノの形
 };
 
-struct MINO
+struct GAME_MINO
 {
-	char shape[MINO_SIZE][MINO_SIZE];	//パターン
-	int  color;		//色
-	int	 x;			//X座標
-	int	 y;			//Y座標
-	int  rotation;	//角度
+	BASIC_MINO basicInfo; //形状
+	int rotation;	//角度
+	int	x;			//X座標
+	int	y;			//Y座標
 };
 
 struct NEXTQUEUE
 {
-	MINO mino[NEXT_QUEUE_SIZE];
+	BASIC_MINO mino[NEXT_QUEUE_SIZE];
 	int queueNum;					//キューの個数
 };
 
 // ==============================================
+// グローバル変数宣言
+// ==============================================
+
+char g_mainMap[MAIN_HEIGHT][MAIN_WIDTH] = { 0 }; //メインマップ
+char g_nextMap[NEXT_HEIGHT][NEXT_WIDTH] = { 0 }; //NEXTマップ
+char g_holdMap[HOLD_HEIGHT][HOLD_WIDTH] = { 0 }; //HOLDマップ
+GAME_MINO g_playerMino;		//プレイヤーの動かすテトリミノ
+NEXTQUEUE g_nextMinos;		//ネクストの列
+
+// ==============================================
 // プロトタイプ宣言
 // ==============================================
-int GameMain(int);
-struct MAP	InitializeMap();
-struct NEXTQUEUE InitializeNextMino();
-struct MINO	CreateMino(int);
-struct MINO ChangePlayerMino(NEXTQUEUE);
-struct NEXTQUEUE AddNextQueue(NEXTQUEUE);
-void RenderScreen(MAP, MINO);
-bool CanMove(char[MAIN_HEIGHT][MAIN_WIDTH], char[MINO_SIZE][MINO_SIZE], int, int);
+int	GameMain(int);
+void InitializeMap();
+void InitializeNextMino();
+void AddNextQueue();
+struct BASIC_MINO CreateMino(int);
+void ChangePlayerMino();
+void ChangePlayerMino(BASIC_MINO);
+void RenderScreen();
+bool CanMove(char[MINO_SIZE][MINO_SIZE], int, int);
 void OutputChar(char);
 void ShuffleArray(int array[], int size);
 
@@ -121,15 +130,15 @@ int GameMain(int)
 
 	//変数宣言
 	bool placeMinoFlg = false;	//テトリミノ設置処理を行うかどうか
-	bool canHoldFlg = false;	//ホールドが可能かどうか
+	bool canHoldFlg = true;	//ホールドが可能かどうか
 	bool holdEmptyFlg = true;	//ホールドが空かどうか
-	MINO holdMino;				//ホールドのミノ
+	BASIC_MINO holdMino;		//ホールドのミノ
 
-	MAP	gameMap = InitializeMap();				//マップ生成
-	NEXTQUEUE nextQueue = InitializeNextMino();	//ネクストミノ生成
-	MINO playerMino = ChangePlayerMino(nextQueue);	//テトリミノのツモ
+	InitializeMap();			//マップ生成
+	InitializeNextMino();	//ネクストミノ生成
+	ChangePlayerMino();		//ネクスト先頭のミノをセット
 	
-	RenderScreen(gameMap, playerMino);
+	RenderScreen();
 
 	//////////////////////////////
 	/////////ゲームループ/////////
@@ -148,8 +157,8 @@ int GameMain(int)
 				//ハードドロップ
 				while (true)
 				{
-					if (CanMove(gameMap.main, playerMino.shape, playerMino.x, playerMino.y + 1))
-						playerMino.y++;
+					if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y + 1))
+						g_playerMino.y++;
 					else
 					{
 						placeMinoFlg = true; //テトリミノ設置するコードは下にあるよ
@@ -159,20 +168,20 @@ int GameMain(int)
 
 			case 'a':
 				//左移動
-				if (CanMove(gameMap.main, playerMino.shape, playerMino.x - 1, playerMino.y))
-					playerMino.x--;
+				if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x - 1, g_playerMino.y))
+					g_playerMino.x--;
 				break;
 
 			case 'd':
 				//右移動
-				if (CanMove(gameMap.main, playerMino.shape, playerMino.x + 1, playerMino.y))
-					playerMino.x++;
+				if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + 1, g_playerMino.y))
+					g_playerMino.x++;
 				break;
 
 			case 's':
 				//下移動
-				if (CanMove(gameMap.main, playerMino.shape, playerMino.x, playerMino.y + 1))
-					playerMino.y++;
+				if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y + 1))
+					g_playerMino.y++;
 				break;
 
 			case 0x1B:
@@ -185,12 +194,28 @@ int GameMain(int)
 				if (canHoldFlg)
 				{
 					if (holdEmptyFlg)
-					{
-						holdMino = playerMino;
+					{	
+						//プレイヤーのテトリミノをHOLDにうつす
+						holdMino = CreateMino(g_playerMino.basicInfo.type);
+
+						ChangePlayerMino(); //次のテトリミノに変更
+
+						if (NEXT_QUEUE_SIZE - g_nextMinos.queueNum >= 7)
+						{	//ネクストの列の空き数が7個になったら
+							//ネクストを補充する
+							AddNextQueue(); //一度の補充で7個のミノを作る
+						}
 					}
 					else
 					{
+						//ホールドミノをtempに保存
+						BASIC_MINO holdTemp = holdMino;
 
+						//プレイヤーのテトリミノをHOLDにうつす
+						holdMino = CreateMino(g_playerMino.basicInfo.type);
+
+						//プレイヤーのミノをtempのミノに変更
+						ChangePlayerMino(holdTemp);
 					}
 
 				}
@@ -199,7 +224,7 @@ int GameMain(int)
 
 			}
 
-			RenderScreen(gameMap, playerMino);
+			RenderScreen();
 		}
 		
 	}
@@ -210,10 +235,8 @@ int GameMain(int)
 // ==============================================
 // マップ初期化関数
 // ==============================================
-struct MAP InitializeMap()
+void InitializeMap()
 {
-	MAP gameMap = { 0 };
-
 	//////////////////
 	// メインマップ //
 	//////////////////
@@ -224,14 +247,14 @@ struct MAP InitializeMap()
 		for (int j = 0; j < MAIN_WIDTH; j++)
 		{
 			if (j == 0 || j == MAIN_WIDTH - 1 || i == MAIN_HEIGHT - 1)
-				gameMap.main[i][j] = 1;
+				g_mainMap[i][j] = 1;
 		}
 	}
 
 	//ゲームオーバーラインの書き込み
 	for (int i = 0; i < MAIN_WIDTH - 2; i++)
 	{
-		gameMap.main[GAMEOVER_LINE_HEIGHT][i + 1] = CHAR_BAR;
+		g_mainMap[GAMEOVER_LINE_HEIGHT][i + 1] = CHAR_BAR;
 	}
 
 	//NEXTマップに外壁を配置する
@@ -241,7 +264,7 @@ struct MAP InitializeMap()
 		{
 			if (j == 0 || j == NEXT_WIDTH - 1 ||
 				i == 0 || i == NEXT_HEIGHT - 1)
-				gameMap.next[i][j] = 1; //外壁	
+				g_nextMap[i][j] = 1; //外壁	
 		}
 	}
 
@@ -252,69 +275,27 @@ struct MAP InitializeMap()
 		{
 			if (j == 0 || j == HOLD_WIDTH - 1 ||
 				i == 0 || i == HOLD_HEIGHT - 1)
-				gameMap.hold[i][j] = 1; //外壁	
+				g_holdMap[i][j] = 1; //外壁	
 		}
 	}
 
-
-
-	return gameMap;
 }
 
 // ==============================================
 // ネクストミノ初期化関数
 // ==============================================
-struct NEXTQUEUE InitializeNextMino()
+void InitializeNextMino()
 {
-	NEXTQUEUE next = { 0 };
-	
 	for (int i = 0; i < 2; i++)
 	{
-		int data[MINO_MAX];
-
-		for (int j = 0; j < MINO_MAX; j++)
-		{
-			data[j] = j;
-		}
-
-		ShuffleArray(data, MINO_MAX);
-
-		for (int j = 0; j < MINO_MAX; j++)
-		{
-			next.mino[next.queueNum] = CreateMino(data[j]);
-			next.queueNum++;
-		}
+		AddNextQueue();
 	}
-	return next;
-}
-
-// ==============================================
-// 操作するテトリミノの変更を行う関数
-// ==============================================
-struct MINO ChangePlayerMino(NEXTQUEUE nextQueue)
-{
-	MINO nextMino = nextQueue.mino[0]; //NEXTの先頭のテトリミノを除列
-
-	nextQueue.queueNum--; //除列したので-1
-
-	for (int i = 0; i < nextQueue.queueNum; i++)
-	{
-		nextQueue.mino[i] = nextQueue.mino[i + 1]; //すべてのNEXTミノを１個前に進める
-	}
-
-	if (NEXT_QUEUE_SIZE - nextQueue.queueNum >= 7)
-	{	//ネクストの列の空き数が7個になったら
-		//ネクストを補充する
-		nextQueue = AddNextQueue(nextQueue); //一度の補充で7個のミノを作る
-	}
-
-	return nextMino; //NEXTの先頭にあったテトリミノをplayerMinoに渡す
 }
 
 // ==============================================
 // ネクストミノ抽選関数
 // ==============================================
-struct NEXTQUEUE AddNextQueue(NEXTQUEUE nextQueue)
+void AddNextQueue()
 {
 	int data[MINO_MAX];
 
@@ -327,91 +308,119 @@ struct NEXTQUEUE AddNextQueue(NEXTQUEUE nextQueue)
 
 	for (int j = 0; j < MINO_MAX; j++)
 	{
-		nextQueue.mino[nextQueue.queueNum] = CreateMino(data[j]);
-		nextQueue.queueNum++;
+		g_nextMinos.mino[g_nextMinos.queueNum] = CreateMino(data[j]);
+		g_nextMinos.queueNum++;
 	}
 
-	return nextQueue;
+}
+
+// ==============================================
+// 操作するテトリミノの変更を行う関数
+// 引数なし:ネクスト先頭のミノに変更する
+// 引数あり:引数に渡したミノに変更する
+// ==============================================
+void ChangePlayerMino()
+{
+	g_playerMino.basicInfo = g_nextMinos.mino[0]; //NEXTの先頭のテトリミノを除列
+
+	g_nextMinos.queueNum--; //除列したので-1
+
+	for (int i = 0; i < g_nextMinos.queueNum; i++)
+	{
+		g_nextMinos.mino[i] = g_nextMinos.mino[i + 1]; //すべてのNEXTミノを１個前に進める
+	}
+
+	//座標・回転の初期化
+	g_playerMino.x = MINOSTART_X;
+	g_playerMino.y = MINOSTART_Y;
+	g_playerMino.rotation = 0;
+}
+
+// ==============================================
+// 操作するテトリミノの変更を行う関数
+// 引数なし:ネクスト先頭のミノに変更する
+// 引数あり:引数に渡したミノに変更する
+// ==============================================
+void ChangePlayerMino(BASIC_MINO changeMino)
+{
+	g_playerMino.basicInfo = changeMino;
+
+	//座標・回転の初期化
+	g_playerMino.x = MINOSTART_X;
+	g_playerMino.y = MINOSTART_Y;
+	g_playerMino.rotation = 0;
 }
 
 // ==============================================
 // テトリミノ作成関数
 // ==============================================
-struct MINO	CreateMino(int minoType)
+struct BASIC_MINO CreateMino(int minoType)
 {
-	MINO mino = { 0 };
+	BASIC_MINO basicMino = { 0 };
 
-	switch (minoType)
+	basicMino.type = minoType; //タイプ情報の更新
+	
+	//形の情報の更新
+	switch (basicMino.type)
 	{
 
 	case MINO_I:
-		mino.shape[1][0] = 1;
-		mino.shape[1][1] = 1;
-		mino.shape[1][2] = 1;
-		mino.shape[1][3] = 1;
-		mino.color = COLOR_CYAN;
+		basicMino.shape[1][0] = CHAR_BLOCK_CYAN;
+		basicMino.shape[1][1] = CHAR_BLOCK_CYAN;
+		basicMino.shape[1][2] = CHAR_BLOCK_CYAN;
+		basicMino.shape[1][3] = CHAR_BLOCK_CYAN;
 		break;
 
 	case MINO_O:
-		mino.shape[1][1] = 1;
-		mino.shape[1][2] = 1;
-		mino.shape[2][1] = 1;
-		mino.shape[2][2] = 1;
-		mino.color = COLOR_YELLOW;
+		basicMino.shape[1][1] = CHAR_BLOCK_YELLOW;
+		basicMino.shape[1][2] = CHAR_BLOCK_YELLOW;
+		basicMino.shape[2][1] = CHAR_BLOCK_YELLOW;
+		basicMino.shape[2][2] = CHAR_BLOCK_YELLOW;
 		break;
 
 	case MINO_S:
-		mino.shape[0][1] = 1;
-		mino.shape[0][2] = 1;
-		mino.shape[1][0] = 1;
-		mino.shape[1][1] = 1;
-		mino.color = COLOR_GREEN;
+		basicMino.shape[0][1] = CHAR_BLOCK_GREEN;
+		basicMino.shape[0][2] = CHAR_BLOCK_GREEN;
+		basicMino.shape[1][0] = CHAR_BLOCK_GREEN;
+		basicMino.shape[1][1] = CHAR_BLOCK_GREEN;
 		break;
 
 	case MINO_Z:
-		mino.shape[0][0] = 1;
-		mino.shape[0][1] = 1;
-		mino.shape[1][1] = 1;
-		mino.shape[1][2] = 1;
-		mino.color = COLOR_RED;
+		basicMino.shape[0][0] = CHAR_BLOCK_RED;
+		basicMino.shape[0][1] = CHAR_BLOCK_RED;
+		basicMino.shape[1][1] = CHAR_BLOCK_RED;
+		basicMino.shape[1][2] = CHAR_BLOCK_RED;
 		break;
 
 	case MINO_J:
-		mino.shape[0][0] = 1;
-		mino.shape[1][0] = 1;
-		mino.shape[1][1] = 1;
-		mino.shape[1][2] = 1;
-		mino.color = COLOR_BLUE;
+		basicMino.shape[0][0] = CHAR_BLOCK_BLUE;
+		basicMino.shape[1][0] = CHAR_BLOCK_BLUE;
+		basicMino.shape[1][1] = CHAR_BLOCK_BLUE;
+		basicMino.shape[1][2] = CHAR_BLOCK_BLUE;
 		break;
 
 	case MINO_L:
-		mino.shape[0][2] = 1;
-		mino.shape[1][0] = 1;
-		mino.shape[1][1] = 1;
-		mino.shape[1][2] = 1;
-		mino.color = COLOR_WHITE;
+		basicMino.shape[0][2] = CHAR_BLOCK_WHITE;
+		basicMino.shape[1][0] = CHAR_BLOCK_WHITE;
+		basicMino.shape[1][1] = CHAR_BLOCK_WHITE;
+		basicMino.shape[1][2] = CHAR_BLOCK_WHITE;
 		break;
 
 	case MINO_T:
-		mino.shape[0][1] = 1;
-		mino.shape[1][0] = 1;
-		mino.shape[1][1] = 1;
-		mino.shape[1][2] = 1;
-		mino.color = COLOR_MAGENTA;
+		basicMino.shape[0][1] = CHAR_BLOCK_MAGENTA;
+		basicMino.shape[1][0] = CHAR_BLOCK_MAGENTA;
+		basicMino.shape[1][1] = CHAR_BLOCK_MAGENTA;
+		basicMino.shape[1][2] = CHAR_BLOCK_MAGENTA;
 		break;
 	}
-	
-	mino.x = MINOSTART_X;
-	mino.y = MINOSTART_Y;
-	mino.rotation = 0;
 
-	return mino;
+	return basicMino;
 }
 
 // ==============================================
 // 画面出力関数
 // ==============================================
-void RenderScreen(MAP gameMap, MINO playerMino)
+void RenderScreen()
 {
 	char displayBuffer[WINDOW_HEIGHT][WINDOW_WIDTH] = { 0 };
 
@@ -424,7 +433,7 @@ void RenderScreen(MAP gameMap, MINO playerMino)
 	{
 		for (int j = 0; j < MAIN_WIDTH; j++)
 		{
-			displayBuffer[i][j + HOLD_WIDTH - 1] = gameMap.main[i][j];
+			displayBuffer[i][j + HOLD_WIDTH - 1] = g_mainMap[i][j];
 		}
 	}
 
@@ -433,8 +442,8 @@ void RenderScreen(MAP gameMap, MINO playerMino)
 	{
 		for (int j = 0; j < MINO_SIZE; j++)
 		{
-			if (playerMino.shape[i][j] != 0)
-				displayBuffer[i + playerMino.y][j + HOLD_WIDTH - 1 + playerMino.x] = playerMino.color;
+			if (g_playerMino.basicInfo.shape[i][j] != 0)
+				displayBuffer[i + g_playerMino.y][j + HOLD_WIDTH - 1 + g_playerMino.x] = g_playerMino.basicInfo.shape[i][j];
 		}
 	}
 
@@ -470,7 +479,7 @@ void RenderScreen(MAP gameMap, MINO playerMino)
 // ==============================================
 // 移動可能か判定する関数
 // ==============================================
-bool CanMove(char mainMap[MAIN_HEIGHT][MAIN_WIDTH], char sourceShape[MINO_SIZE][MINO_SIZE], int futurePosX, int futurePosY)
+bool CanMove(char sourceShape[MINO_SIZE][MINO_SIZE], int futurePosX, int futurePosY)
 {
 	//////////////////////
 	///////変数宣言///////
@@ -492,8 +501,8 @@ bool CanMove(char mainMap[MAIN_HEIGHT][MAIN_WIDTH], char sourceShape[MINO_SIZE][
 			//空白(0)もしくはゲームオーバーライン(9)じゃなかったら
 			//falseを返す
 			if (sourceShape[i][j] != 0 &&
-				mainMap[futurePosY + i][futurePosX + j] != CHAR_NULL &&
-				mainMap[futurePosY + i][futurePosX + j] != CHAR_BAR)
+				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_NULL &&
+				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_BAR)
 				return false;
 		}
 	}
@@ -513,35 +522,35 @@ void OutputChar(char key)
 		std::cout << "  ";
 		break;
 
-	case CHAR_SQUARE:
+	case CHAR_BLOCK:
 		std::cout << "\x1b[39m■\x1b[39m";
 		break;
 
-	case COLOR_CYAN:
+	case CHAR_BLOCK_CYAN:
 		std::cout << "\x1b[36m■";
 		break;
 
-	case COLOR_YELLOW:
+	case CHAR_BLOCK_YELLOW:
 		std::cout << "\x1b[33m■";
 		break;
 
-	case COLOR_GREEN:
+	case CHAR_BLOCK_GREEN:
 		std::cout << "\x1b[32m■";
 		break;
 
-	case COLOR_RED:
+	case CHAR_BLOCK_RED:
 		std::cout << "\x1b[31m■";
 		break;
 
-	case COLOR_BLUE:
+	case CHAR_BLOCK_BLUE:
 		std::cout << "\x1b[34m■";
 		break;
 
-	case COLOR_WHITE:
+	case CHAR_BLOCK_WHITE:
 		std::cout << "\x1b[37m■";
 		break;
 
-	case COLOR_MAGENTA:
+	case CHAR_BLOCK_MAGENTA:
 		std::cout << "\x1b[35m■";
 		break;
 
