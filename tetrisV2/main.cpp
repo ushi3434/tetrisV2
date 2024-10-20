@@ -12,6 +12,7 @@
 #include <conio.h>
 #include <time.h>
 #include <stdlib.h>
+#include <string.h>
 
 // ==============================================
 // マクロ定義
@@ -46,10 +47,17 @@
 #define MINOSTART_X (4) //テトリミノのスポーン地点(X座標)
 #define MINOSTART_Y (0) //テトリミノのスポーン地点(Y座標)
 
+//UI関連
+#define MAP_MAIN (0)	//メインマップ
+#define MAP_NEXT (1)	//NEXTマップ
+#define MAP_HOLD (2)	//HOLDマップ
+#define NEXT_DISPLAY_NUM (4) //ネクストミノの画面表示最大数
+#define STR_SIZE (32)	 //文字列のサイズ
+
 //文字出力関連
-#define CHAR_NULL			(0)	//全角スペース
+#define CHAR_SPACE			(0)	//全角スペース
 #define CHAR_BLOCK			(1)	//■(無色)
-#define CHAR_BLOCK_CYAN		(2)
+#define CHAR_BLOCK_CYAN		(2) //■色違い
 #define CHAR_BLOCK_YELLOW	(3)
 #define CHAR_BLOCK_GREEN	(4)
 #define CHAR_BLOCK_RED		(5)
@@ -57,6 +65,9 @@
 #define CHAR_BLOCK_WHITE	(7)
 #define CHAR_BLOCK_MAGENTA	(8)
 #define CHAR_BAR			(9)	//━
+#define STR_HOLD0			(30)//文字列
+#define STR_HOLD1			(31)
+#define STR_NEXT0			(32)
 
 
 
@@ -83,6 +94,13 @@ struct NEXTQUEUE
 	int queueNum;					//キューの個数
 };
 
+struct STR_DICTIONARY
+{
+	char hold0[STR_SIZE];
+	char hold1[STR_SIZE];
+	char next0[STR_SIZE];
+};
+
 // ==============================================
 // グローバル変数宣言
 // ==============================================
@@ -92,6 +110,7 @@ char g_nextMap[NEXT_HEIGHT][NEXT_WIDTH] = { 0 }; //NEXTマップ
 char g_holdMap[HOLD_HEIGHT][HOLD_WIDTH] = { 0 }; //HOLDマップ
 GAME_MINO g_playerMino;		//プレイヤーの動かすテトリミノ
 NEXTQUEUE g_nextMinos;		//ネクストの列
+STR_DICTIONARY strDictionary; //文字列データの辞書
 
 // ==============================================
 // プロトタイプ宣言
@@ -107,7 +126,8 @@ void RenderScreen();
 bool CanMove(char[MINO_SIZE][MINO_SIZE], int, int);
 void OutputChar(char);
 void ShuffleArray(int array[], int size);
-
+void UpdateNextMap();
+void UpdateHoldMap(BASIC_MINO, bool);
 
 // ==============================================
 // メイン関数
@@ -130,15 +150,16 @@ int GameMain(int)
 
 	//変数宣言
 	bool placeMinoFlg = false;	//テトリミノ設置処理を行うかどうか
-	bool canHoldFlg = true;	//ホールドが可能かどうか
+	bool canHoldFlg = true;		//ホールドが可能かどうか
 	bool holdEmptyFlg = true;	//ホールドが空かどうか
-	BASIC_MINO holdMino;		//ホールドのミノ
+	BASIC_MINO holdMino = { 0 };		//ホールドのミノ
 
-	InitializeMap();			//マップ生成
+	InitializeMap();		//マップ生成
 	InitializeNextMino();	//ネクストミノ生成
 	ChangePlayerMino();		//ネクスト先頭のミノをセット
+	UpdateNextMap();		//ネクスト描画更新
 	
-	RenderScreen();
+	RenderScreen();			//画面出力
 
 	//////////////////////////////
 	/////////ゲームループ/////////
@@ -165,6 +186,7 @@ int GameMain(int)
 						break;
 					}
 				}
+				break;
 
 			case 'a':
 				//左移動
@@ -218,12 +240,12 @@ int GameMain(int)
 						ChangePlayerMino(holdTemp);
 					}
 
+					canHoldFlg = false; //ホールドを使用したのでfalseにする
+
+					UpdateHoldMap(holdMino, canHoldFlg); //HOLDマップの描画更新
 				}
-
 				break;
-
 			}
-
 			RenderScreen();
 		}
 		
@@ -237,11 +259,11 @@ int GameMain(int)
 // ==============================================
 void InitializeMap()
 {
-	//////////////////
-	// メインマップ //
-	//////////////////
+	////////////////
+	//メインマップ//
+	////////////////
 
-	// 壁・地面を配置する
+	//壁・地面を配置する
 	for (int i = 0; i < MAIN_HEIGHT; i++)
 	{
 		for (int j = 0; j < MAIN_WIDTH; j++)
@@ -257,7 +279,11 @@ void InitializeMap()
 		g_mainMap[GAMEOVER_LINE_HEIGHT][i + 1] = CHAR_BAR;
 	}
 
-	//NEXTマップに外壁を配置する
+	////////////////
+	///NEXTマップ///
+	////////////////
+
+	//外壁を配置する
 	for (int i = 0; i < NEXT_HEIGHT; i++)
 	{
 		for (int j = 0; j < NEXT_WIDTH; j++)
@@ -268,7 +294,19 @@ void InitializeMap()
 		}
 	}
 
-	//HOLDマップに外壁を配置する
+	//文字列の配置
+	strcpy(strDictionary.next0, "ＮＥＸＴ");
+	g_nextMap[1][1] = STR_NEXT0;
+	for (int i = 0; i < strlen(strDictionary.next0) / 2 - 1; i++)
+	{
+		g_nextMap[1][2 + i] = -1;
+	}
+
+	////////////////
+	///HOLDマップ///
+	////////////////
+
+	//外壁を配置する
 	for (int i = 0; i < HOLD_HEIGHT; i++)
 	{
 		for (int j = 0; j < HOLD_WIDTH; j++)
@@ -277,6 +315,22 @@ void InitializeMap()
 				i == 0 || i == HOLD_HEIGHT - 1)
 				g_holdMap[i][j] = 1; //外壁	
 		}
+	}
+
+	//文字列の配置
+	
+	strcpy(strDictionary.hold0, "ＨＯＬＤ");
+	g_holdMap[1][1] = STR_HOLD0;
+	for (int i = 0; i < strlen(strDictionary.hold0) / 2 - 1; i++)
+	{
+		g_holdMap[1][2 + i] = -1;
+	}
+
+	strcpy(strDictionary.hold1, "ＯＫ　　");
+	g_holdMap[5][1] = STR_HOLD1;
+	for (int i = 0; i < strlen(strDictionary.hold1) / 2 - 1; i++)
+	{
+		g_holdMap[5][2 + i] = -1;
 	}
 
 }
@@ -447,6 +501,24 @@ void RenderScreen()
 		}
 	}
 
+	//NEXTマップの書き込み
+	for (int i = 0; i < NEXT_HEIGHT; i++)
+	{
+		for (int j = 0; j < NEXT_WIDTH; j++)
+		{
+			displayBuffer[i][j + NEXT_WIDTH + MAIN_WIDTH - 2] = g_nextMap[i][j];
+		}
+	}
+
+	//HOLDマップの書き込み
+	for (int i = 0; i < HOLD_HEIGHT; i++)
+	{
+		for (int j = 0; j < HOLD_WIDTH; j++)
+		{
+			displayBuffer[i][j] = g_holdMap[i][j];
+		}
+	}
+
 	//////////////////
 	////画面の出力////
 	//////////////////
@@ -501,7 +573,7 @@ bool CanMove(char sourceShape[MINO_SIZE][MINO_SIZE], int futurePosX, int futureP
 			//空白(0)もしくはゲームオーバーライン(9)じゃなかったら
 			//falseを返す
 			if (sourceShape[i][j] != 0 &&
-				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_NULL &&
+				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_SPACE &&
 				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_BAR)
 				return false;
 		}
@@ -518,7 +590,7 @@ void OutputChar(char key)
 {
 	switch (key)
 	{
-	case CHAR_NULL:
+	case CHAR_SPACE:
 		std::cout << "  ";
 		break;
 
@@ -557,6 +629,18 @@ void OutputChar(char key)
 	case CHAR_BAR:
 		std::cout << "\x1b[31m━━\x1b[39m";
 		break;
+	
+	case STR_HOLD0:
+		std::cout << strDictionary.hold0;
+		break;
+
+	case STR_HOLD1:
+		std::cout << strDictionary.hold1;
+		break;
+
+	case STR_NEXT0:
+		std::cout << strDictionary.next0;
+		break;
 
 	default:
 		break;
@@ -579,4 +663,43 @@ void ShuffleArray(int array[], int size)
 		array[MINO_MAX - 1 - i] = array[randomIndex];
 		array[randomIndex] = tempData;
 	}
+}
+
+// ==============================================
+// NEXTマップ更新関数
+// ==============================================
+void UpdateNextMap()
+{
+	for (int i = 0; i < NEXT_DISPLAY_NUM; i++)
+	{
+		for (int j = 0; j < MINO_SIZE; j++)
+		{
+			for (int k = 0; k < MINO_SIZE; k++)
+			{
+				//NEXTのテトリミノのパターンを描画
+				g_nextMap[i * 4 + j + 2][k + 1] = g_nextMinos.mino[i].shape[j][k]; 
+			}
+		}
+	}
+}
+
+// ==============================================
+// HOLDマップ更新関数
+// ==============================================
+void UpdateHoldMap(BASIC_MINO newHold, bool canHoldFlg)
+{
+	for (int i = 0; i < MINO_SIZE - 1; i++)
+	{
+		for (int j = 0; j < MINO_SIZE; j++)
+		{
+			g_holdMap[i + 2][j + 1] = newHold.shape[i][j];
+		}
+	}
+
+	//ＵＩ表示更新
+	if(canHoldFlg)
+		strcpy(strDictionary.hold1, "ＯＫ　　");
+	else
+		strcpy(strDictionary.hold1, "ＮＧ　　");
+
 }
