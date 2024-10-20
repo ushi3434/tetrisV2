@@ -83,7 +83,7 @@ struct BASIC_MINO
 struct GAME_MINO
 {
 	BASIC_MINO basicInfo; //形状
-	int rotation;	//角度
+	int angle;	//角度
 	int	x;			//X座標
 	int	y;			//Y座標
 };
@@ -128,6 +128,11 @@ void OutputChar(char);
 void ShuffleArray(int array[], int size);
 void UpdateNextMap();
 void UpdateHoldMap(BASIC_MINO, bool);
+bool CheckLineFull(int);
+void DeleteOneLine(int);
+int  DeleteMapLine();
+void SuperRotationSystem(int);
+void RotateShape(char[MINO_SIZE][MINO_SIZE], int, bool);
 
 // ==============================================
 // メイン関数
@@ -153,6 +158,7 @@ int GameMain(int)
 	bool canHoldFlg = true;		//ホールドが可能かどうか
 	bool holdEmptyFlg = true;	//ホールドが空かどうか
 	BASIC_MINO holdMino = { 0 };		//ホールドのミノ
+	int deletedLines = 0;		//ライン消去数
 
 	InitializeMap();		//マップ生成
 	InitializeNextMino();	//ネクストミノ生成
@@ -172,7 +178,8 @@ int GameMain(int)
 
 		if (_kbhit())
 		{
-			switch (_getch())
+			int key = _getch();
+			switch (key)
 			{
 			case 'w':
 				//ハードドロップ
@@ -204,6 +211,8 @@ int GameMain(int)
 				//下移動
 				if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y + 1))
 					g_playerMino.y++;
+				else
+					placeMinoFlg = true; //テトリミノ設置するコードは下にあるよ
 				break;
 
 			case 0x1B:
@@ -245,10 +254,53 @@ int GameMain(int)
 					UpdateHoldMap(holdMino, canHoldFlg); //HOLDマップの描画更新
 				}
 				break;
+
+			case 'p':
+			case 'o':
+				if (g_playerMino.basicInfo.type != MINO_O)
+					//Oミノは回転しないので無視
+					SuperRotationSystem(key);
 			}
+
 			RenderScreen();
 		}
 		
+		////////////////////////////////
+		///////テトリミノ設置処理///////
+		////////////////////////////////
+		if (placeMinoFlg)
+		{ //今までの処理で設置フラグを獲得してた場合、設置処理を行う
+
+			//マップに操作中のテトリミノを書き込む
+			for (int i = 0; i < MINO_SIZE; i++)
+			{
+				for (int j = 0; j < MINO_SIZE; j++)
+				{
+					if (g_playerMino.basicInfo.shape[i][j] != 0)
+						g_mainMap[i + g_playerMino.y][j + g_playerMino.x] = g_playerMino.basicInfo.shape[i][j];
+				}
+			}
+
+			//揃ったラインの消去
+			deletedLines += DeleteMapLine();
+
+			ChangePlayerMino();			
+
+			if (NEXT_QUEUE_SIZE - g_nextMinos.queueNum >= 7)
+			{
+				AddNextQueue();
+			}
+
+			UpdateNextMap();
+
+			canHoldFlg = true;
+
+			UpdateHoldMap(holdMino, canHoldFlg);
+
+			RenderScreen();
+
+			placeMinoFlg = false;
+		}
 	}
 
 	return 0;
@@ -387,7 +439,7 @@ void ChangePlayerMino()
 	//座標・回転の初期化
 	g_playerMino.x = MINOSTART_X;
 	g_playerMino.y = MINOSTART_Y;
-	g_playerMino.rotation = 0;
+	g_playerMino.angle = 0;
 }
 
 // ==============================================
@@ -402,7 +454,7 @@ void ChangePlayerMino(BASIC_MINO changeMino)
 	//座標・回転の初期化
 	g_playerMino.x = MINOSTART_X;
 	g_playerMino.y = MINOSTART_Y;
-	g_playerMino.rotation = 0;
+	g_playerMino.angle = 0;
 }
 
 // ==============================================
@@ -702,4 +754,500 @@ void UpdateHoldMap(BASIC_MINO newHold, bool canHoldFlg)
 	else
 		strcpy(strDictionary.hold1, "ＮＧ　　");
 
+}
+
+// ==============================================
+// ラインが揃っているかを判定する関数
+// ==============================================
+bool CheckLineFull(int y)
+{
+	//////////////////////
+	///////変数宣言///////
+	//////////////////////
+
+	int i;
+
+	//////////////////////
+	///////判定部分///////
+	//////////////////////
+
+	for (i = 1; i < MAIN_WIDTH - 1; i++)
+	{
+		if (g_mainMap[y][i] == 0)
+			return false; //空白があったらfalseを返す
+	}
+
+	return true;
+}
+
+// ==============================================
+// ラインを１行消して上のブロックを下に落とす関数
+// ==============================================
+void DeleteOneLine(int y)
+{
+	//////////////////////
+	///////変数宣言///////
+	//////////////////////
+
+	int i, j;
+
+	//////////////////////
+	///////処理部分///////
+	//////////////////////
+
+	for (i = y; i > 0; i--)
+	{
+		for (j = 1; j < MAIN_WIDTH - 1; j++)
+			g_mainMap[i][j] = g_mainMap[i - 1][j];
+	}
+
+}
+
+// ==============================================
+// すべての揃ったラインを消去する関数
+// ==============================================
+int DeleteMapLine()
+{
+	//////////////////////
+	///////変数宣言///////
+	//////////////////////
+
+	int i;
+	int DeleteCnt = 0;
+
+	//////////////////////
+	///////処理部分///////
+	//////////////////////
+
+	for (i = 0; i < MAIN_HEIGHT - 1; i++)
+	{
+		if (CheckLineFull(i))
+		{
+			DeleteOneLine(i);
+			DeleteCnt++;
+		}
+	}
+
+	return DeleteCnt;
+}
+
+// ==============================================
+// テトリミノの回転処理を行う関数
+// SRS(Super Rotation System)を行う関数
+// ->テトリミノの回転を直感的に行えるように、
+//   操作に補正を加える処理のこと
+// ==============================================
+void SuperRotationSystem(int key)
+{
+	//一度の回転につき、5つの配置パターンを判定して行う
+
+	//後の処理のために回転前のアングルをコピーする
+	int oldAngle = g_playerMino.angle;
+
+	//パターン0.通常の回転
+
+	if (key == 'p')
+	{ //右回転
+		g_playerMino.angle++;
+		RotateShape(g_playerMino.basicInfo.shape, g_playerMino.basicInfo.type, true);
+	}
+
+	else if (key == 'o')
+	{ //左回転
+		g_playerMino.angle--;
+		RotateShape(g_playerMino.basicInfo.shape, g_playerMino.basicInfo.type, false);
+
+	}
+
+	//閾値の設定(値を0~3でループさせる)
+	g_playerMino.angle = (g_playerMino.angle + 4) % 4;
+
+	if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y))
+	{ //移動可能であればここで決定、不可能の場合パターン1へ
+
+		//値の初期化
+		int deltaX = 0, deltaY = 0; //仮の移動量
+
+		//ここからＩミノの場合と、それ以外で処理が異なる
+		if (g_playerMino.basicInfo.type == 0)
+		{ //Ｉミノのとき
+
+			//パターン1.パターン0から図形を左右に動かす
+			//	パターン0後の図形のアングルが
+			//	1(右向き)の場合は右へ移動
+			//	3(左向き)の場合は左へ移動
+			//	0,2(上向き・下向き)の場合は回転前の逆の向きへ移動 
+			//  (0のときは2マス移動)
+
+			if (g_playerMino.angle == 1)
+				deltaX = 1;
+
+			else if (g_playerMino.angle == 3)
+				deltaX = -1;
+
+			else
+			{
+				if (key == 'o')
+					deltaX = 1;
+				else
+					deltaX = -1;
+
+				if (g_playerMino.angle == 0)
+					deltaX *= 2; //0のときは2マス移動
+			}
+
+			int tempDeltaX1 = deltaX; //後のパターン判定で使用するため、一時的に保存する
+
+			if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+			{ //移動可能であればここで決定、不可能の場合パターン2へ
+
+				//パターン2.パターン0から図形を左右に動かす
+				//	パターン0後の図形のアングルが
+				//	1(右向き)の場合は左へ移動
+				//	3(左向き)の場合は右へ移動
+				//	0,2(上向き・下向き)の場合は回転前の逆の向きへ移動 
+				//  (2のときは2マス移動)
+
+				if (g_playerMino.angle == 1)
+					deltaX = -1;
+
+				else if (g_playerMino.angle == 3)
+					deltaX = 1;
+
+				else
+				{
+					if (key == 'o')
+						deltaX = -1;
+					else
+						deltaX = 1;
+
+					if (g_playerMino.angle == 2)
+						deltaX *= 2; //2のときは2マス移動
+				}
+
+				int tempDeltaX2 = deltaX; //後のパターン判定で使用するため、一時的に保存する
+
+				if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+				{ //移動可能であればここで決定、不可能の場合パターン3へ
+
+					//パターン3.上下に動かす
+					//	パターン0後の図形のアングルが
+					//	1(右向き)の場合はパターン1後の図形を下へ移動
+					//	3(左向き)の場合はパターン1後の図形を上へ移動
+					//	0,2(上向き・下向き)の場合は
+					//		回転前のアングルが1ならパターン1後の図形を上へ移動
+					//		回転前のアングルが3ならパターン2後の図形を下へ移動
+					//  左回転なら上下の移動量は2マスとなる
+
+					if (g_playerMino.angle == 1)
+					{
+						deltaX = tempDeltaX1;
+						deltaY = 1;
+					}
+
+					else if (g_playerMino.angle == 3)
+					{
+						deltaX = tempDeltaX1;
+						deltaY = -1;
+					}
+
+					else
+					{
+						if (oldAngle == 1)
+						{
+							deltaX = tempDeltaX1;
+							deltaY = -1;
+						}
+
+						else
+						{
+							deltaX = tempDeltaX2;
+							deltaY = 1;
+						}
+					}
+
+					if (key == 'o')
+						deltaY *= 2; //左回転なら上下の移動量は2マスとなる
+
+					if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+					{ //移動可能であればここで決定、不可能の場合パターン4へ
+
+						//パターン4.上下に動かす
+						//	パターン0後の図形のアングルが
+						//	1(右向き)の場合はパターン2後の図形を上へ移動
+						//	3(左向き)の場合はパターン2後の図形を下へ移動
+						//	0,2(上向き・下向き)の場合は
+						//		回転前のアングルが1ならパターン2後の図形を下へ移動
+						//		回転前のアングルが3ならパターン1後の図形を上へ移動
+						//  右回転なら上下の移動量は2マスとなる
+
+						if (g_playerMino.angle == 1)
+						{
+							deltaX = tempDeltaX2;
+							deltaY = -1;
+						}
+
+						else if (g_playerMino.angle == 3)
+						{
+							deltaX = tempDeltaX2;
+							deltaY = 1;
+						}
+
+						else
+						{
+							if (oldAngle == 1)
+							{
+								deltaX = tempDeltaX2;
+								deltaY = 1;
+							}
+
+							else
+							{
+								deltaX = tempDeltaX1;
+								deltaY = -1;
+							}
+						}
+
+						if (key == 'p')
+							deltaY *= 2; //右回転なら上下の移動量は2マスとなる
+
+						if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+						{ //これで動けなかったら移動も回転もキャンセルする
+							deltaX = 0;
+							deltaY = 0;
+
+							if (key == 'p')
+							{
+								g_playerMino.angle--;
+								RotateShape(g_playerMino.basicInfo.shape, g_playerMino.basicInfo.type, false); //回転を打ち消す
+							}
+
+							else if (key == 'o')
+							{
+								g_playerMino.angle++;
+								RotateShape(g_playerMino.basicInfo.shape, g_playerMino.basicInfo.type, true); //回転を打ち消す
+							}
+						}
+					}
+
+				}
+			}
+
+		}
+
+		else
+		{ //Ｉミノ以外のとき
+
+			//パターン1.パターン0から図形を左右に1マス動かす
+			//	パターン0後の図形のアングルが
+			//	1(右向き)の場合は左へ移動
+			//	3(左向き)の場合は右へ移動
+			//	0,2(上向き・下向き)の場合は回転前の逆の向きへ移動
+
+			if (g_playerMino.angle == 1) //右向きのとき
+				deltaX = -1;
+
+			else if (g_playerMino.angle == 3) //左向きのとき
+				deltaX = 1;
+
+			else
+			{ //上向き・下向きの時
+				if (oldAngle == 1) //旧アングルが右のとき
+					deltaX = 1;
+
+				else					//旧アングルが左のとき
+					deltaX = -1;
+			}
+
+			if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+			{ //移動可能であればここで決定、不可能の場合パターン2へ
+
+				//パターン2.パターン1から上下に１マス動かす
+				//	パターン0後の図形のアングルが
+				//	1,3(右向き・左向き)の場合は上へ移動
+				//	0,2(上向き・下向き)の場合は下へ移動
+
+				if (g_playerMino.angle == 1 || g_playerMino.angle == 3)
+					deltaY = -1;
+
+				else
+					deltaY = 1;
+
+				if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+				{ //移動可能であればここで決定、不可能の場合パターン3へ
+
+					//パターン3.パターン0から上下に２マス動かす
+					//	1,3(右向き・左向き)の場合は下へ移動
+					//	0,2(上向き・下向き)の場合は上へ移動
+
+					//パターン0からなので変位をリセット
+					deltaX = 0;
+					deltaY = 0;
+
+					if (g_playerMino.angle == 1 || g_playerMino.angle == 3)
+						deltaY = -2;
+
+					else
+						deltaY = 2;
+
+					if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+					{ //移動可能であればここで決定、不可能の場合パターン4へ
+
+						//パターン4.パターン3から図形を左右に動かす
+						//	パターン0後の図形のアングルが
+						//	1(右向き)の場合は左
+						//	3(左向き)の場合は右へ移動
+						//	0,2(上向き・下向き)の場合は回転前の逆の向きへ移動
+
+						if (g_playerMino.angle == 1)
+							deltaX = -1;
+
+						else if (g_playerMino.angle == 3)
+							deltaX = 1;
+
+						else
+						{ //上向き・下向きのとき
+							if (oldAngle == 1)
+								deltaX = 1;
+
+							else
+								deltaX = -1;
+						}
+
+						if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x + deltaX, g_playerMino.y + deltaY))
+						{ //これで動けなかったら移動も回転もキャンセルする
+							deltaX = 0;
+							deltaY = 0;
+
+							if (key == 'p')
+							{
+								g_playerMino.angle--;
+								RotateShape(g_playerMino.basicInfo.shape, g_playerMino.basicInfo.type, false); //回転を打ち消す
+							}
+
+							else if (key == 'o')
+							{
+								g_playerMino.angle++;
+								RotateShape(g_playerMino.basicInfo.shape, g_playerMino.basicInfo.type, true); //回転を打ち消す
+							}
+						}
+					}
+				}
+			}
+		}
+
+		g_playerMino.x += deltaX;
+		g_playerMino.y += deltaY;
+
+		//閾値の設定(値を0~3でループさせる)
+		g_playerMino.angle = (g_playerMino.angle + 4) % 4;
+	}
+}
+
+// ==============================================
+// ±90°図形を回転させる関数
+// ==============================================
+void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], int minoType, bool rotateClockwise)
+{
+	//単位円上の任意の点(x,y)は
+	// x=cosθ,y=sinθと表せる
+	// 90度時計回りに回転させた後の点(x′,y′)は
+	// x′=cos(θ-90°)=cosθcos90°+sinθsin90°=sinθ=y
+	// y′=sin(θ-90°)=sinθcos90°-cosθsin90°=-cosθ=-x
+	// すなわち
+	//①行と列を入れ替える(y=xを軸に対称移動)
+	//②左右反転させる
+	//これにより時計回りに90°回転したことになるので、これを用いて図形を回転させる
+	//(反時計回りの場合は②のときに上下反転)
+
+	//////////////////
+	/////変数宣言/////
+	//////////////////
+
+	int tmp[MINO_SIZE][MINO_SIZE] = { 0 }; //上記の①の処理後のパターンを保存する一時的な配列
+
+	//////////////////
+	////図形の回転////
+	//////////////////
+
+	//Ｉミノだけ大きいので、Ｉミノとその他のミノで処理を分ける
+	if (minoType == 0)
+	{ //Ｉミノのとき
+
+		//①i=jを軸に対称移動
+		for (int i = 0; i < MINO_SIZE; i++)
+		{
+			for (int j = 0; j < MINO_SIZE; j++)
+			{
+				tmp[i][j] = sourceShape[j][i];
+			}
+		}
+
+		if (rotateClockwise)
+		{ //時計回りの場合
+
+			//②左右反転
+			for (int i = 0; i < MINO_SIZE; i++)
+			{
+				for (int j = 0; j < MINO_SIZE; j++)
+				{
+					sourceShape[i][j] = tmp[i][MINO_SIZE - 1 - j];
+				}
+			}
+
+		}
+
+		else
+		{ //反時計回りの場合
+			//②上下反転
+			for (int i = 0; i < MINO_SIZE; i++)
+			{
+				for (int j = 0; j < MINO_SIZE; j++)
+				{
+					sourceShape[i][j] = tmp[MINO_SIZE - 1 - i][j];
+				}
+			}
+		}
+	}
+
+	else
+	{ //Ｉミノ以外の時
+
+		//①i=jを軸に対称移動
+		for (int i = 0; i < MINO_SIZE - 1; i++)
+		{
+			for (int j = 0; j < MINO_SIZE - 1; j++)
+			{
+				tmp[i][j] = sourceShape[j][i];
+			}
+		}
+
+		if (rotateClockwise)
+		{ //時計回りの場合
+
+			//②左右反転
+			for (int i = 0; i < MINO_SIZE - 1; i++)
+			{
+				for (int j = 0; j < MINO_SIZE - 1; j++)
+				{
+					sourceShape[i][j] = tmp[i][MINO_SIZE - 2 - j];
+				}
+			}
+
+		}
+
+		else
+		{ //反時計回りの場合
+			//②上下反転
+			for (int i = 0; i < MINO_SIZE - 1; i++)
+			{
+				for (int j = 0; j < MINO_SIZE - 1; j++)
+				{
+					sourceShape[i][j] = tmp[MINO_SIZE - 2 - i][j];
+				}
+			}
+		}
+	}
+
+	return;
 }
