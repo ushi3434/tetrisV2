@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <Windows.h>
+#include <ios>
+#include <iomanip>
 
 // ==============================================
 // マクロ定義
@@ -57,7 +59,7 @@
 
 //文字出力関連
 #define CHAR_SPACE			(0)	//全角スペースのキー
-#define CHAR_BLOCK			(1)	//■(無色)
+#define CHAR_WALL			(1)	//■(無色)
 #define CHAR_BLOCK_CYAN		(2) //■色違い
 #define CHAR_BLOCK_YELLOW	(3)
 #define CHAR_BLOCK_GREEN	(4)
@@ -155,14 +157,16 @@ int GameMain(int)
 	bool placeMinoFlg = false;	//テトリミノ設置処理を行うかどうか
 	bool canHoldFlg = true;		//ホールドが可能かどうか
 	bool holdEmptyFlg = true;	//ホールドが空かどうか
-	BASIC_MINO holdMino = { 0 };		//ホールドのミノ
-	int deletedLines = 0;		//ライン消去数
+	BASIC_MINO holdMino = { 0 };	//ホールドのミノ
+	int deletedLines = 0;			//ライン消去数
+	int fallingInterval = 50;		//落下間隔
+	int timerSec = 0;
+	int timerMin = 0;
 
 	InitializeMap();		//マップ生成
 	InitializeNextMino();	//ネクストミノ生成
 	ChangePlayerMino();		//ネクスト先頭のミノをセット
 	UpdateNextMap();		//ネクスト描画更新
-	
 	RenderScreen();			//画面出力
 
 	//////////////////////////////
@@ -170,6 +174,17 @@ int GameMain(int)
 	//////////////////////////////
 	while (true)
 	{
+		////////////////////////////////
+		///////テトリミノ自然落下///////
+		////////////////////////////////
+		if (g_frameCount % fallingInterval == 0)
+		{
+			if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y + 1))
+				g_playerMino.y++;
+			else
+				placeMinoFlg = true; //テトリミノ設置するコードは下にあるよ	
+		}
+
 		////////////////////////////////
 		//////キーボード操作の実装//////
 		////////////////////////////////
@@ -307,6 +322,27 @@ int GameMain(int)
 		RenderScreen();
 		MoveCursor(0, 0);
 		Sleep(16);
+
+		////////////////////////////////
+		//////////タイマー処理//////////
+		////////////////////////////////
+
+		if (g_frameCount % 62 == 0)
+		{
+			timerSec++;
+			if (timerSec == 60)
+			{
+				timerMin++;
+				timerSec = 0;
+			}
+		}
+
+		MoveCursor(10, 0);
+		std::cout << "TIME";
+		MoveCursor(11, 0);
+		std::cout << std::setfill('0') << std::right << std::setw(2) << timerMin;
+		std::cout << ":";
+		std::cout << std::setfill('0') << std::right << std::setw(2) << timerSec;
 
 	}
 
@@ -612,7 +648,6 @@ void RenderScreen()
 			}
 		}
 
-		//std::cout << "\n";
 	}
 
 	/*std::cout << "\n";
@@ -667,8 +702,8 @@ void OutputChar(char key)
 		std::cout << "  ";
 		break;
 
-	case CHAR_BLOCK:
-		std::cout << "\x1b[39m■\x1b[39m";
+	case CHAR_WALL:
+		std::cout << "\x1b[47m　\x1b[49m";
 		break;
 
 	case CHAR_BLOCK_CYAN:
