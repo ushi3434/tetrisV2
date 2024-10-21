@@ -65,9 +65,10 @@
 #define CHAR_BLOCK_BLUE		(6)
 #define CHAR_BLOCK_WHITE	(7)
 #define CHAR_BLOCK_MAGENTA	(8)
-#define CHAR_BAR			(9)	//━
-#define STRPOS_HOLD0_X		(1) //文字列(HOLD)を出力する列
-#define STRPOS_HOLD0_Y		(1) //文字列(HOLD)を出力する行
+#define GHOSTBLOCK_OFFSET	(10) //ゴーストブロックのオフセット
+#define CHAR_BAR			(9)	 //━
+#define STRPOS_HOLD0_X		(1)  //文字列(HOLD)を出力する列
+#define STRPOS_HOLD0_Y		(1)  //文字列(HOLD)を出力する行
 
 
 
@@ -304,6 +305,7 @@ int GameMain(int)
 
 		g_frameCount++;
 		RenderScreen();
+		MoveCursor(0, 0);
 		Sleep(16);
 
 	}
@@ -537,6 +539,29 @@ void RenderScreen()
 		}
 	}
 
+	//操作中のテトリミノの現在地から真下のブロックまでの距離を計算する
+	int minoMargin = 0;
+
+	while (true)
+	{
+		if (CanMove(g_playerMino.basicInfo.shape,g_playerMino.x, g_playerMino.y + 1 + minoMargin))
+			minoMargin++;
+		else
+			break;
+	}
+
+	//求めたminoMarginを使って、操作中のテトリミノのゴーストブロックの書き込み
+
+	for (int i = 0; i < MINO_SIZE; i++)
+	{
+		for (int j = 0; j < MINO_SIZE; j++)
+		{
+			if (g_playerMino.basicInfo.shape[i][j] != 0)
+				displayBuffer[minoMargin + i + g_playerMino.y][j + HOLD_WIDTH - 1 + g_playerMino.x] = GHOSTBLOCK_OFFSET +  g_playerMino.basicInfo.shape[i][j];
+		}
+	}
+	
+
 	//操作中のテトリミノの書き込み
 	for (int i = 0; i < MINO_SIZE; i++)
 	{
@@ -564,6 +589,8 @@ void RenderScreen()
 			displayBuffer[i][j] = g_holdMap[i][j];
 		}
 	}
+
+
 
 	//////////////////
 	////画面の出力////
@@ -648,29 +675,58 @@ void OutputChar(char key)
 		std::cout << "\x1b[36m■\x1b[39m";
 		break;
 
+	case CHAR_BLOCK_CYAN + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[36m■\x1b[39m\x1b[0m";
+		break;
+
 	case CHAR_BLOCK_YELLOW:
 		std::cout << "\x1b[33m■\x1b[39m";
+		break;
+
+	case CHAR_BLOCK_YELLOW + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[33m■\x1b[39m\x1b[0m";
 		break;
 
 	case CHAR_BLOCK_GREEN:
 		std::cout << "\x1b[32m■\x1b[39m";
 		break;
 
+	case CHAR_BLOCK_GREEN + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[32m■\x1b[39m\x1b[0m";
+		break;
+
 	case CHAR_BLOCK_RED:
 		std::cout << "\x1b[31m■\x1b[39m";
+		break;
+
+	case CHAR_BLOCK_RED + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[31m■\x1b[39m\x1b[0m";
 		break;
 
 	case CHAR_BLOCK_BLUE:
 		std::cout << "\x1b[34m■\x1b[39m";
 		break;
 
+	case CHAR_BLOCK_BLUE + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[34m■\x1b[39m\x1b[0m";
+		break;
+
 	case CHAR_BLOCK_WHITE:
 		std::cout << "\x1b[37m■\x1b[39m";
+		break;
+
+	case CHAR_BLOCK_WHITE + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[37m■\x1b[39m\x1b[0m";
 		break;
 
 	case CHAR_BLOCK_MAGENTA:
 		std::cout << "\x1b[35m■\x1b[39m";
 		break;
+
+	case CHAR_BLOCK_MAGENTA + GHOSTBLOCK_OFFSET:
+		std::cout << "\x1b[7m\x1b[35m■\x1b[39m\x1b[0m";
+		break;
+
 
 	case CHAR_BAR:
 		std::cout << "\x1b[31m━━\x1b[39m";
