@@ -13,6 +13,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <Windows.h>
 
 // ==============================================
 // マクロ定義
@@ -83,7 +84,7 @@ struct BASIC_MINO
 struct GAME_MINO
 {
 	BASIC_MINO basicInfo; //形状
-	int angle;	//角度
+	int angle;		//角度(0:上,1:右,2:下,3:左)
 	int	x;			//X座標
 	int	y;			//Y座標
 };
@@ -104,6 +105,8 @@ struct STR_DICTIONARY
 // ==============================================
 // グローバル変数宣言
 // ==============================================
+
+long long g_frameCount = 0;
 
 char g_mainMap[MAIN_HEIGHT][MAIN_WIDTH] = { 0 }; //メインマップ
 char g_nextMap[NEXT_HEIGHT][NEXT_WIDTH] = { 0 }; //NEXTマップ
@@ -236,6 +239,8 @@ int GameMain(int)
 							//ネクストを補充する
 							AddNextQueue(); //一度の補充で7個のミノを作る
 						}
+
+						holdEmptyFlg = false;
 					}
 					else
 					{
@@ -263,6 +268,8 @@ int GameMain(int)
 			}
 
 			RenderScreen();
+
+
 		}
 		
 		////////////////////////////////
@@ -301,6 +308,7 @@ int GameMain(int)
 
 			placeMinoFlg = false;
 		}
+
 	}
 
 	return 0;
@@ -528,7 +536,8 @@ struct BASIC_MINO CreateMino(int minoType)
 // ==============================================
 void RenderScreen()
 {
-	char displayBuffer[WINDOW_HEIGHT][WINDOW_WIDTH] = { 0 };
+	static char displayData[WINDOW_HEIGHT][WINDOW_WIDTH] = { 0 };
+	static char displayBuffer[WINDOW_HEIGHT][WINDOW_WIDTH] = { 0 };
 
 	//////////////////
 	//配列を書き込む//
@@ -588,6 +597,7 @@ void RenderScreen()
 
 		for (int j = 0; j < WINDOW_WIDTH; j++)
 		{
+			
 			OutputChar(displayBuffer[i][j]);
 		}
 
@@ -862,8 +872,8 @@ void SuperRotationSystem(int key)
 	//閾値の設定(値を0~3でループさせる)
 	g_playerMino.angle = (g_playerMino.angle + 4) % 4;
 
-	if (CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y))
-	{ //移動可能であればここで決定、不可能の場合パターン1へ
+	if (!CanMove(g_playerMino.basicInfo.shape, g_playerMino.x, g_playerMino.y))
+	{ //移動可能であればここで修了、不可能の場合は続きのパターン1へ
 
 		//値の初期化
 		int deltaX = 0, deltaY = 0; //仮の移動量
@@ -1164,14 +1174,14 @@ void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], int minoType, bool rota
 	/////変数宣言/////
 	//////////////////
 
-	int tmp[MINO_SIZE][MINO_SIZE] = { 0 }; //上記の①の処理後のパターンを保存する一時的な配列
+	char tmp[MINO_SIZE][MINO_SIZE] = { 0 }; //上記の①の処理後のパターンを保存する一時的な配列
 
 	//////////////////
 	////図形の回転////
 	//////////////////
 
 	//Ｉミノだけ大きいので、Ｉミノとその他のミノで処理を分ける
-	if (minoType == 0)
+	if (minoType == MINO_I)
 	{ //Ｉミノのとき
 
 		//①i=jを軸に対称移動
@@ -1250,4 +1260,11 @@ void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], int minoType, bool rota
 	}
 
 	return;
+}
+
+// ==============================================
+// カーソルを移動させる関数
+// ==============================================
+void MoveCursor(int Y, int X) {
+	std::cout << "\033[" << Y << ";" << X << "H";
 }
