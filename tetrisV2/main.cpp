@@ -56,7 +56,7 @@
 #define STR_SIZE (32)	 //文字列のサイズ
 
 //文字出力関連
-#define CHAR_SPACE			(0)	//全角スペース
+#define CHAR_SPACE			(0)	//全角スペースのキー
 #define CHAR_BLOCK			(1)	//■(無色)
 #define CHAR_BLOCK_CYAN		(2) //■色違い
 #define CHAR_BLOCK_YELLOW	(3)
@@ -66,9 +66,8 @@
 #define CHAR_BLOCK_WHITE	(7)
 #define CHAR_BLOCK_MAGENTA	(8)
 #define CHAR_BAR			(9)	//━
-#define STR_HOLD0			(30)//文字列
-#define STR_HOLD1			(31)
-#define STR_NEXT0			(32)
+#define STRPOS_HOLD0_X		(1) //文字列(HOLD)を出力する列
+#define STRPOS_HOLD0_Y		(1) //文字列(HOLD)を出力する行
 
 
 
@@ -95,12 +94,6 @@ struct NEXTQUEUE
 	int queueNum;					//キューの個数
 };
 
-struct STR_DICTIONARY
-{
-	char hold0[STR_SIZE];
-	char hold1[STR_SIZE];
-	char next0[STR_SIZE];
-};
 
 // ==============================================
 // グローバル変数宣言
@@ -113,7 +106,6 @@ char g_nextMap[NEXT_HEIGHT][NEXT_WIDTH] = { 0 }; //NEXTマップ
 char g_holdMap[HOLD_HEIGHT][HOLD_WIDTH] = { 0 }; //HOLDマップ
 GAME_MINO g_playerMino;		//プレイヤーの動かすテトリミノ
 NEXTQUEUE g_nextMinos;		//ネクストの列
-STR_DICTIONARY strDictionary; //文字列データの辞書
 
 // ==============================================
 // プロトタイプ宣言
@@ -136,13 +128,15 @@ void DeleteOneLine(int);
 int  DeleteMapLine();
 void SuperRotationSystem(int);
 void RotateShape(char[MINO_SIZE][MINO_SIZE], int, bool);
+void MoveCursor(int, int);
+
 
 // ==============================================
 // メイン関数
 // ==============================================
 int main(void)
 {
-	srand((unsigned int)time(NULL));
+	srand((unsigned int)time(NULL)); //乱数初期化
 
 	GameMain(1);
 }
@@ -267,9 +261,6 @@ int GameMain(int)
 					SuperRotationSystem(key);
 			}
 
-			RenderScreen();
-
-
 		}
 		
 		////////////////////////////////
@@ -304,10 +295,16 @@ int GameMain(int)
 
 			UpdateHoldMap(holdMino, canHoldFlg);
 
-			RenderScreen();
-
 			placeMinoFlg = false;
 		}
+
+		////////////////////////////////
+		////////フレーム制御処理////////
+		////////////////////////////////
+
+		g_frameCount++;
+		RenderScreen();
+		Sleep(16);
 
 	}
 
@@ -355,12 +352,10 @@ void InitializeMap()
 	}
 
 	//文字列の配置
-	strcpy(strDictionary.next0, "ＮＥＸＴ");
-	g_nextMap[1][1] = STR_NEXT0;
-	for (int i = 0; i < strlen(strDictionary.next0) / 2 - 1; i++)
-	{
-		g_nextMap[1][2 + i] = -1;
-	}
+
+	MoveCursor(1, 17);
+	std::cout << "ＮＥＸＴ";
+	
 
 	////////////////
 	///HOLDマップ///
@@ -378,20 +373,10 @@ void InitializeMap()
 	}
 
 	//文字列の配置
-	
-	strcpy(strDictionary.hold0, "ＨＯＬＤ");
-	g_holdMap[1][1] = STR_HOLD0;
-	for (int i = 0; i < strlen(strDictionary.hold0) / 2 - 1; i++)
-	{
-		g_holdMap[1][2 + i] = -1;
-	}
-
-	strcpy(strDictionary.hold1, "ＯＫ　　");
-	g_holdMap[5][1] = STR_HOLD1;
-	for (int i = 0; i < strlen(strDictionary.hold1) / 2 - 1; i++)
-	{
-		g_holdMap[5][2 + i] = -1;
-	}
+	MoveCursor(1, 1);
+	std::cout << "ＨＯＬＤ";
+	MoveCursor(5, 1);
+	std::cout << "ＯＫ";
 
 }
 
@@ -584,29 +569,28 @@ void RenderScreen()
 	////画面の出力////
 	//////////////////
 
-	system("cls"); //画面消去
-
-	for (int i = 0; i < WINDOW_OFFSET_Y; i++)
-		std::cout << "\n";
-
 	for (int i = 0; i < WINDOW_HEIGHT; i++)
 	{
-		for (int j = 0; j < WINDOW_OFFSET_X; j++)
-			std::cout << " ";
 
 
 		for (int j = 0; j < WINDOW_WIDTH; j++)
 		{
-			
-			OutputChar(displayBuffer[i][j]);
+			if (displayData[i][j] != displayBuffer[i][j])
+			{
+				displayData[i][j] = displayBuffer[i][j];
+
+				MoveCursor(i, j);
+				OutputChar(displayBuffer[i][j]);
+
+			}
 		}
 
-		std::cout << "\n";
+		//std::cout << "\n";
 	}
 
-	std::cout << "\n";
+	/*std::cout << "\n";
 	std::cout << "　　　　　　A:ひだり D:みぎ   S:した       W:ハードドロップ\n";
-	std::cout << "　　　　　　O:左回転 P:右回転 C/L:ホールド ESC:タイトルにもどる\n";
+	std::cout << "　　　　　　O:左回転 P:右回転 C/L:ホールド ESC:タイトルにもどる\n";*/
 
 }
 
@@ -661,47 +645,35 @@ void OutputChar(char key)
 		break;
 
 	case CHAR_BLOCK_CYAN:
-		std::cout << "\x1b[36m■";
+		std::cout << "\x1b[36m■\x1b[39m";
 		break;
 
 	case CHAR_BLOCK_YELLOW:
-		std::cout << "\x1b[33m■";
+		std::cout << "\x1b[33m■\x1b[39m";
 		break;
 
 	case CHAR_BLOCK_GREEN:
-		std::cout << "\x1b[32m■";
+		std::cout << "\x1b[32m■\x1b[39m";
 		break;
 
 	case CHAR_BLOCK_RED:
-		std::cout << "\x1b[31m■";
+		std::cout << "\x1b[31m■\x1b[39m";
 		break;
 
 	case CHAR_BLOCK_BLUE:
-		std::cout << "\x1b[34m■";
+		std::cout << "\x1b[34m■\x1b[39m";
 		break;
 
 	case CHAR_BLOCK_WHITE:
-		std::cout << "\x1b[37m■";
+		std::cout << "\x1b[37m■\x1b[39m";
 		break;
 
 	case CHAR_BLOCK_MAGENTA:
-		std::cout << "\x1b[35m■";
+		std::cout << "\x1b[35m■\x1b[39m";
 		break;
 
 	case CHAR_BAR:
 		std::cout << "\x1b[31m━━\x1b[39m";
-		break;
-	
-	case STR_HOLD0:
-		std::cout << strDictionary.hold0;
-		break;
-
-	case STR_HOLD1:
-		std::cout << strDictionary.hold1;
-		break;
-
-	case STR_NEXT0:
-		std::cout << strDictionary.next0;
 		break;
 
 	default:
@@ -759,11 +731,16 @@ void UpdateHoldMap(BASIC_MINO newHold, bool canHoldFlg)
 	}
 
 	//ＵＩ表示更新
-	if(canHoldFlg)
-		strcpy(strDictionary.hold1, "ＯＫ　　");
+	if (canHoldFlg)
+	{
+		MoveCursor(5, 1);
+		std::cout << "ＯＫ";
+	}
 	else
-		strcpy(strDictionary.hold1, "ＮＧ　　");
-
+	{
+		MoveCursor(5, 1);
+		std::cout << "ＮＧ";
+	}
 }
 
 // ==============================================
@@ -1265,6 +1242,8 @@ void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], int minoType, bool rota
 // ==============================================
 // カーソルを移動させる関数
 // ==============================================
-void MoveCursor(int Y, int X) {
-	std::cout << "\033[" << Y << ";" << X << "H";
+void MoveCursor(int Y, int X) 
+{
+	//出力を全角文字で統一しているので、Xは2倍にする
+	std::cout << "\033[" << Y + 1 << ";" << 2 * X + 1 << "H";
 }
