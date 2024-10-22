@@ -118,7 +118,7 @@ void InitializeMap();
 void InitializeNextMino();
 void AddNextQueue();
 struct BASIC_MINO CreateMino(int);
-void ChangePlayerMino();
+void DrawNextMino();
 void ChangePlayerMino(BASIC_MINO);
 void RenderScreen();
 bool CanMove(char[MINO_SIZE][MINO_SIZE], int, int);
@@ -132,13 +132,14 @@ int  DeleteMapLine();
 void SuperRotationSystem(int);
 void RotateShape(char[MINO_SIZE][MINO_SIZE], int, bool);
 void MoveCursor(int, int);
-
+void DeleteCursor();
 
 // ==============================================
 // メイン関数
 // ==============================================
 int main(void)
 {
+	DeleteCursor();
 	srand((unsigned int)time(NULL)); //乱数初期化
 
 	GameMain(1);
@@ -165,8 +166,7 @@ int GameMain(int)
 
 	InitializeMap();		//マップ生成
 	InitializeNextMino();	//ネクストミノ生成
-	ChangePlayerMino();		//ネクスト先頭のミノをセット
-	UpdateNextMap();		//ネクスト描画更新
+	DrawNextMino();			//次のテトリミノを引く
 	RenderScreen();			//画面出力
 
 	//////////////////////////////
@@ -242,13 +242,7 @@ int GameMain(int)
 						//プレイヤーのテトリミノをHOLDにうつす
 						holdMino = CreateMino(g_playerMino.basicInfo.type);
 
-						ChangePlayerMino(); //次のテトリミノに変更
-
-						if (NEXT_QUEUE_SIZE - g_nextMinos.queueNum >= 7)
-						{	//ネクストの列の空き数が7個になったら
-							//ネクストを補充する
-							AddNextQueue(); //一度の補充で7個のミノを作る
-						}
+						DrawNextMino();
 
 						holdEmptyFlg = false;
 					}
@@ -298,14 +292,7 @@ int GameMain(int)
 			//揃ったラインの消去
 			deletedLines += DeleteMapLine();
 
-			ChangePlayerMino();			
-
-			if (NEXT_QUEUE_SIZE - g_nextMinos.queueNum >= 7)
-			{
-				AddNextQueue();
-			}
-
-			UpdateNextMap();
+			DrawNextMino();
 
 			canHoldFlg = true;
 
@@ -327,7 +314,7 @@ int GameMain(int)
 		//////////タイマー処理//////////
 		////////////////////////////////
 
-		if (g_frameCount % 62 == 0)
+		if (g_frameCount % 33 == 0)
 		{
 			timerSec++;
 			if (timerSec == 60)
@@ -452,12 +439,12 @@ void AddNextQueue()
 }
 
 // ==============================================
-// 操作するテトリミノの変更を行う関数
-// 引数なし:ネクスト先頭のミノに変更する
-// 引数あり:引数に渡したミノに変更する
+// 次のテトリミノに変更する関数
 // ==============================================
-void ChangePlayerMino()
+void DrawNextMino()
 {
+	ChangePlayerMino(g_nextMinos.mino[0]);
+
 	g_playerMino.basicInfo = g_nextMinos.mino[0]; //NEXTの先頭のテトリミノを除列
 
 	g_nextMinos.queueNum--; //除列したので-1
@@ -467,16 +454,19 @@ void ChangePlayerMino()
 		g_nextMinos.mino[i] = g_nextMinos.mino[i + 1]; //すべてのNEXTミノを１個前に進める
 	}
 
-	//座標・回転の初期化
-	g_playerMino.x = MINOSTART_X;
-	g_playerMino.y = MINOSTART_Y;
-	g_playerMino.angle = 0;
+	if (NEXT_QUEUE_SIZE - g_nextMinos.queueNum >= 7)
+	{	//ネクストの列の空き数が7個になったら
+		//ネクストを補充する
+		AddNextQueue(); //一度の補充で7個のミノを作る
+	}
+
+	UpdateNextMap(); //ネクストの描画更新
+
 }
 
 // ==============================================
 // 操作するテトリミノの変更を行う関数
-// 引数なし:ネクスト先頭のミノに変更する
-// 引数あり:引数に渡したミノに変更する
+// 引数に渡したミノに変更する
 // ==============================================
 void ChangePlayerMino(BASIC_MINO changeMino)
 {
@@ -1337,4 +1327,22 @@ void MoveCursor(int Y, int X)
 {
 	//出力を全角文字で統一しているので、Xは2倍にする
 	std::cout << "\033[" << Y + 1 << ";" << 2 * X + 1 << "H";
+}
+
+void DeleteCursor()
+{
+	HANDLE hOut;
+	CONSOLE_CURSOR_INFO cci;
+
+	// 出力用ハンドルの取得
+	hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	// CONSOLE_CURSOR_INFO構造体の現在の状態を取得する
+	GetConsoleCursorInfo(hOut, &cci);
+
+	// メンバ変数であるbVisibleがカーソルの表示・非表示を制御する変数なので、これをFALSEにする事でカーソルを非表示にできる
+	cci.bVisible = FALSE;
+
+	// 変更した構造体情報をコンソールWindowにセットする
+	SetConsoleCursorInfo(hOut, &cci);
 }
