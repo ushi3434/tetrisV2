@@ -43,14 +43,11 @@
 #define MINOSTART_Y (0) //テトリミノのスポーン地点(Y座標)
 
 //UI関連
-#define MAP_MAIN (0)	//メインマップ
-#define MAP_NEXT (1)	//NEXTマップ
-#define MAP_HOLD (2)	//HOLDマップ
 #define NEXT_DISPLAY_NUM (4) //ネクストミノの画面表示最大数
 #define STR_SIZE (32)	 //文字列のサイズ
 
 //文字出力関連
-#define SPACE			(0)	//全角スペースのキー
+#define SPACE			(0)	//全角スペース
 #define WALL			(1)	//壁ブロック
 #define BLOCK_CYAN		(2) //■シアン
 #define BLOCK_YELLOW	(3)	//■きいろ
@@ -130,6 +127,8 @@ void SuperRotationSystem(int);
 void RotateShape(char[MINO_SIZE][MINO_SIZE], MinoType, bool);
 void MoveCursor(int, int);
 void DeleteCursor();
+bool CheckGameOver();
+void HandleGameOver();
 
 // ==============================================
 // メイン関数
@@ -140,6 +139,7 @@ int main(void)
 	srand((unsigned int)time(NULL)); //乱数初期化
 
 	GameMain(1);
+
 }
 
 // ==============================================
@@ -289,6 +289,13 @@ int GameMain(int)
 			//揃ったラインの消去
 			deletedLines += DeleteMapLine();
 
+			//ゲームオーバーの判定
+			if (CheckGameOver())
+			{
+				HandleGameOver();
+				return 1;
+			}
+
 			DrawNextMino();
 
 			canHoldFlg = true;
@@ -313,20 +320,17 @@ int GameMain(int)
 		if (g_frameCount % 33 == 0)
 		{
 			timerSec++;
+			MoveCursor(11, 2);
+			std::cout << std::setfill('0') << std::right << std::setw(2) << timerSec;
+
 			if (timerSec == 60)
 			{
 				timerMin++;
+				MoveCursor(11, 0);
+				std::cout << std::setfill('0') << std::right << std::setw(2) << timerMin;
 				timerSec = 0;
 			}
 		}
-
-		MoveCursor(10, 0);
-		std::cout << "TIME";
-		MoveCursor(11, 0);
-		std::cout << std::setfill('0') << std::right << std::setw(2) << timerMin;
-		std::cout << ":";
-		std::cout << std::setfill('0') << std::right << std::setw(2) << timerSec;
-
 	}
 
 	return 0;
@@ -392,6 +396,18 @@ void InitializeMap()
 	std::cout << "ＨＯＬＤ";
 	MoveCursor(5, 1);
 	std::cout << "ＯＫ";
+
+	//操作説明の出力
+	MoveCursor(25, -7);
+	std::cout << "　　　　　　A:ひだり D:みぎ   S:した       W:ハードドロップ";
+	MoveCursor(26, -7);
+	std::cout << "　　　　　　O:左回転 P:右回転 C/L:ホールド ESC:タイトルにもどる";
+
+	//タイマーの出力
+	MoveCursor(10, 0);
+	std::cout << "TIME";
+	MoveCursor(11, 0);
+	std::cout << "00：00";
 
 }
 
@@ -634,10 +650,6 @@ void RenderScreen()
 		}
 
 	}
-
-	/*std::cout << "\n";
-	std::cout << "　　　　　　A:ひだり D:みぎ   S:した       W:ハードドロップ\n";
-	std::cout << "　　　　　　O:左回転 P:右回転 C/L:ホールド ESC:タイトルにもどる\n";*/
 
 }
 
@@ -1322,7 +1334,7 @@ void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], MinoType minoType, bool
 void MoveCursor(int Y, int X) 
 {
 	//出力を全角文字で統一しているので、Xは2倍にする
-	std::cout << "\033[" << Y + 1 << ";" << 2 * X + 1 << "H";
+	std::cout << "\033[" << Y + 1 + WINDOW_OFFSET_Y << ";" << 2 * X + 1 + WINDOW_OFFSET_X << "H";
 }
 
 // ==============================================
@@ -1344,4 +1356,30 @@ void DeleteCursor()
 
 	// 変更した構造体情報をコンソールWindowにセットする
 	SetConsoleCursorInfo(hOut, &cci);
+}
+
+// ==============================================
+// ゲームオーバー判定関数
+// 戻り値：true ゲームオーバー
+// 戻り値：false ゲーム続行
+// ==============================================
+bool CheckGameOver()
+{
+	for (int i = 0; i < MAIN_WIDTH - 2; i++)
+	{
+		//ゲームオーバーラインの上に空白以外のブロックがあれば
+		//ゲームオーバーフラグをtrueにする
+		if (g_mainMap[GAMEOVER_LINE_HEIGHT][i + 1] != SPACE)
+			return true;
+	}
+	
+	return false;
+}
+
+// ==============================================
+// ゲームオーバーを扱う関数
+// ==============================================
+void HandleGameOver()
+{
+
 }
