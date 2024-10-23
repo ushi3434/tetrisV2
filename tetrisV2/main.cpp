@@ -34,14 +34,6 @@
 #define HOLD_HEIGHT	(7)		//HOLDマップの高さ
 
 //テトリミノ関連
-#define MINO_MAX	(7)		//テトリミノの種類
-#define MINO_I		(0)		//Iミノ
-#define MINO_O		(1)		//Oミノ
-#define MINO_S		(2)		//Sミノ
-#define MINO_Z		(3)		//Zミノ
-#define MINO_J		(4)		//Jミノ
-#define MINO_L		(5)		//Lミノ
-#define MINO_T		(6)		//Tミノ
 #define MINO_SIZE	(4)		//１つのテトリミノのパターンを保存する領域(正方形)の一辺の長さ
 #define NEXT_QUEUE_SIZE (14) //次のテトリミノの種類を保存するキューのサイズ
 
@@ -71,11 +63,20 @@
 #define CHAR_BAR			(9)	 //━
 
 // ==============================================
+// 列挙体宣言
+// ==============================================
+enum MinoType
+{
+	I,O,S,Z,J,L,T,
+	MINO_MAX
+};
+
+// ==============================================
 // 構造体宣言
 // ==============================================
 struct BASIC_MINO
 {
-	int type;		//テトリミノのタイプ
+	MinoType type;		//テトリミノのタイプ
 	char shape[MINO_SIZE][MINO_SIZE];	//テトリミノの形
 };
 
@@ -113,7 +114,7 @@ int	GameMain(int);
 void InitializeMap();
 void InitializeNextMino();
 void AddNextQueue();
-struct BASIC_MINO CreateMino(int);
+struct BASIC_MINO CreateMino(MinoType);
 void DrawNextMino();
 void ChangePlayerMino(BASIC_MINO);
 void RenderScreen();
@@ -126,7 +127,7 @@ bool CheckLineFull(int);
 void DeleteOneLine(int);
 int  DeleteMapLine();
 void SuperRotationSystem(int);
-void RotateShape(char[MINO_SIZE][MINO_SIZE], int, bool);
+void RotateShape(char[MINO_SIZE][MINO_SIZE], MinoType, bool);
 void MoveCursor(int, int);
 void DeleteCursor();
 
@@ -135,7 +136,7 @@ void DeleteCursor();
 // ==============================================
 int main(void)
 {
-	DeleteCursor();
+	DeleteCursor(); //カーソル消す
 	srand((unsigned int)time(NULL)); //乱数初期化
 
 	GameMain(1);
@@ -154,9 +155,9 @@ int GameMain(int)
 	bool placeMinoFlg = false;	//テトリミノ設置処理を行うかどうか
 	bool canHoldFlg = true;		//ホールドが可能かどうか
 	bool holdEmptyFlg = true;	//ホールドが空かどうか
-	BASIC_MINO holdMino = { 0 };	//ホールドのミノ
-	int deletedLines = 0;			//ライン消去数
-	int fallingInterval = 50;		//落下間隔
+	BASIC_MINO holdMino = {};		//ホールドのミノ
+	int deletedLines = 0;		//ライン消去数
+	int fallingInterval = 50;	//落下間隔
 	int timerSec = 0;
 	int timerMin = 0;
 
@@ -262,7 +263,7 @@ int GameMain(int)
 
 			case 'p':
 			case 'o':
-				if (g_playerMino.basicInfo.type != MINO_O)
+				if (g_playerMino.basicInfo.type != O)
 					//Oミノは回転しないので無視
 					SuperRotationSystem(key);
 			}
@@ -303,7 +304,6 @@ int GameMain(int)
 
 		g_frameCount++;
 		RenderScreen();
-		MoveCursor(0, 0);
 		Sleep(16);
 
 		////////////////////////////////
@@ -349,12 +349,6 @@ void InitializeMap()
 			if (j == 0 || j == MAIN_WIDTH - 1 || i == MAIN_HEIGHT - 1)
 				g_mainMap[i][j] = 1;
 		}
-	}
-
-	//ゲームオーバーラインの書き込み
-	for (int i = 0; i < MAIN_WIDTH - 2; i++)
-	{
-		g_mainMap[GAMEOVER_LINE_HEIGHT][i + 1] = CHAR_BAR;
 	}
 
 	////////////////
@@ -428,7 +422,7 @@ void AddNextQueue()
 
 	for (int j = 0; j < MINO_MAX; j++)
 	{
-		g_nextMinos.mino[g_nextMinos.queueNum] = CreateMino(data[j]);
+		g_nextMinos.mino[g_nextMinos.queueNum] = CreateMino((MinoType)data[j]);
 		g_nextMinos.queueNum++;
 	}
 
@@ -477,59 +471,59 @@ void ChangePlayerMino(BASIC_MINO changeMino)
 // ==============================================
 // テトリミノ作成関数
 // ==============================================
-struct BASIC_MINO CreateMino(int minoType)
+struct BASIC_MINO CreateMino(MinoType sourceType)
 {
-	BASIC_MINO basicMino = { 0 };
+	BASIC_MINO basicMino = {};
 
-	basicMino.type = minoType; //タイプ情報の更新
-	
+	basicMino.type = sourceType; //タイプ情報の更新
+
 	//形の情報の更新
 	switch (basicMino.type)
 	{
 
-	case MINO_I:
+	case I:
 		basicMino.shape[1][0] = BLOCK_CYAN;
 		basicMino.shape[1][1] = BLOCK_CYAN;
 		basicMino.shape[1][2] = BLOCK_CYAN;
 		basicMino.shape[1][3] = BLOCK_CYAN;
 		break;
 
-	case MINO_O:
+	case O:
 		basicMino.shape[1][1] = BLOCK_YELLOW;
 		basicMino.shape[1][2] = BLOCK_YELLOW;
 		basicMino.shape[2][1] = BLOCK_YELLOW;
 		basicMino.shape[2][2] = BLOCK_YELLOW;
 		break;
 
-	case MINO_S:
+	case S:
 		basicMino.shape[0][1] = BLOCK_GREEN;
 		basicMino.shape[0][2] = BLOCK_GREEN;
 		basicMino.shape[1][0] = BLOCK_GREEN;
 		basicMino.shape[1][1] = BLOCK_GREEN;
 		break;
 
-	case MINO_Z:
+	case Z:
 		basicMino.shape[0][0] = BLOCK_RED;
 		basicMino.shape[0][1] = BLOCK_RED;
 		basicMino.shape[1][1] = BLOCK_RED;
 		basicMino.shape[1][2] = BLOCK_RED;
 		break;
 
-	case MINO_J:
+	case J:
 		basicMino.shape[0][0] = BLOCK_BLUE;
 		basicMino.shape[1][0] = BLOCK_BLUE;
 		basicMino.shape[1][1] = BLOCK_BLUE;
 		basicMino.shape[1][2] = BLOCK_BLUE;
 		break;
 
-	case MINO_L:
+	case L:
 		basicMino.shape[0][2] = BLOCK_WHITE;
 		basicMino.shape[1][0] = BLOCK_WHITE;
 		basicMino.shape[1][1] = BLOCK_WHITE;
 		basicMino.shape[1][2] = BLOCK_WHITE;
 		break;
 
-	case MINO_T:
+	case T:
 		basicMino.shape[0][1] = BLOCK_MAGENTA;
 		basicMino.shape[1][0] = BLOCK_MAGENTA;
 		basicMino.shape[1][1] = BLOCK_MAGENTA;
@@ -583,6 +577,11 @@ void RenderScreen()
 		}
 	}
 	
+	//ゲームオーバーラインの書き込み
+	for (int i = 0; i < MAIN_WIDTH - 2; i++)
+	{
+		displayBuffer[GAMEOVER_LINE_HEIGHT][HOLD_WIDTH + i] = CHAR_BAR;
+	}
 
 	//操作中のテトリミノの書き込み
 	for (int i = 0; i < MINO_SIZE; i++)
@@ -1212,7 +1211,7 @@ void SuperRotationSystem(int key)
 // ==============================================
 // ±90°図形を回転させる関数
 // ==============================================
-void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], int minoType, bool rotateClockwise)
+void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], MinoType minoType, bool rotateClockwise)
 {
 	//単位円上の任意の点(x,y)は
 	// x=cosθ,y=sinθと表せる
@@ -1236,7 +1235,7 @@ void RotateShape(char sourceShape[MINO_SIZE][MINO_SIZE], int minoType, bool rota
 	//////////////////
 
 	//Ｉミノだけ大きいので、Ｉミノとその他のミノで処理を分ける
-	if (minoType == MINO_I)
+	if (minoType == I)
 	{ //Ｉミノのとき
 
 		//①i=jを軸に対称移動
@@ -1326,6 +1325,9 @@ void MoveCursor(int Y, int X)
 	std::cout << "\033[" << Y + 1 << ";" << 2 * X + 1 << "H";
 }
 
+// ==============================================
+// カーソルを非表示にする関数
+// ==============================================
 void DeleteCursor()
 {
 	HANDLE hOut;
