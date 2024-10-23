@@ -129,6 +129,8 @@ void MoveCursor(int, int);
 void DeleteCursor();
 bool CheckGameOver();
 void HandleGameOver();
+void ChangePalletColor(int, int, int, int);
+void InitializeColorPallet();
 
 // ==============================================
 // メイン関数
@@ -1380,6 +1382,25 @@ bool CheckGameOver()
 // ゲームオーバーを扱う関数
 // ==============================================
 void HandleGameOver()
+{
+
+}
+
+// ==============================================
+// カラーパレットの色を変える関数
+// ==============================================
+void ChangePalletColor(int index, int red, int green, int blue)
+{
+	std::cout << "\x1b]4;" << index << ";rgb:";
+	std::cout << std::hex << std::uppercase << red << "/";
+	std::cout << std::hex << std::uppercase << green << "/";
+	std::cout << std::hex << std::uppercase << blue << "\x07";
+}
+
+// ==============================================
+//
+// ==============================================
+void InitializeColorPallet()
 {
 
 }
