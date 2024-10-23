@@ -58,21 +58,17 @@
 #define STR_SIZE (32)	 //文字列のサイズ
 
 //文字出力関連
-#define CHAR_SPACE			(0)	//全角スペースのキー
-#define CHAR_WALL			(1)	//■(無色)
-#define CHAR_BLOCK_CYAN		(2) //■色違い
-#define CHAR_BLOCK_YELLOW	(3)
-#define CHAR_BLOCK_GREEN	(4)
-#define CHAR_BLOCK_RED		(5)
-#define CHAR_BLOCK_BLUE		(6)
-#define CHAR_BLOCK_WHITE	(7)
-#define CHAR_BLOCK_MAGENTA	(8)
+#define SPACE			(0)	//全角スペースのキー
+#define WALL			(1)	//壁ブロック
+#define BLOCK_CYAN		(2) //■シアン
+#define BLOCK_YELLOW	(3)	//■きいろ
+#define BLOCK_GREEN		(4)	//■みどり
+#define BLOCK_RED		(5)	//■あか
+#define BLOCK_BLUE		(6)	//■あお
+#define BLOCK_WHITE		(7)	//■しろ
+#define BLOCK_MAGENTA	(8)	//■マゼンタ
 #define GHOSTBLOCK_OFFSET	(10) //ゴーストブロックのオフセット
 #define CHAR_BAR			(9)	 //━
-#define STRPOS_HOLD0_X		(1)  //文字列(HOLD)を出力する列
-#define STRPOS_HOLD0_Y		(1)  //文字列(HOLD)を出力する行
-
-
 
 // ==============================================
 // 構造体宣言
@@ -393,7 +389,7 @@ void InitializeMap()
 		{
 			if (j == 0 || j == HOLD_WIDTH - 1 ||
 				i == 0 || i == HOLD_HEIGHT - 1)
-				g_holdMap[i][j] = 1; //外壁	
+				g_holdMap[i][j] = WALL; //外壁	
 		}
 	}
 
@@ -492,52 +488,52 @@ struct BASIC_MINO CreateMino(int minoType)
 	{
 
 	case MINO_I:
-		basicMino.shape[1][0] = CHAR_BLOCK_CYAN;
-		basicMino.shape[1][1] = CHAR_BLOCK_CYAN;
-		basicMino.shape[1][2] = CHAR_BLOCK_CYAN;
-		basicMino.shape[1][3] = CHAR_BLOCK_CYAN;
+		basicMino.shape[1][0] = BLOCK_CYAN;
+		basicMino.shape[1][1] = BLOCK_CYAN;
+		basicMino.shape[1][2] = BLOCK_CYAN;
+		basicMino.shape[1][3] = BLOCK_CYAN;
 		break;
 
 	case MINO_O:
-		basicMino.shape[1][1] = CHAR_BLOCK_YELLOW;
-		basicMino.shape[1][2] = CHAR_BLOCK_YELLOW;
-		basicMino.shape[2][1] = CHAR_BLOCK_YELLOW;
-		basicMino.shape[2][2] = CHAR_BLOCK_YELLOW;
+		basicMino.shape[1][1] = BLOCK_YELLOW;
+		basicMino.shape[1][2] = BLOCK_YELLOW;
+		basicMino.shape[2][1] = BLOCK_YELLOW;
+		basicMino.shape[2][2] = BLOCK_YELLOW;
 		break;
 
 	case MINO_S:
-		basicMino.shape[0][1] = CHAR_BLOCK_GREEN;
-		basicMino.shape[0][2] = CHAR_BLOCK_GREEN;
-		basicMino.shape[1][0] = CHAR_BLOCK_GREEN;
-		basicMino.shape[1][1] = CHAR_BLOCK_GREEN;
+		basicMino.shape[0][1] = BLOCK_GREEN;
+		basicMino.shape[0][2] = BLOCK_GREEN;
+		basicMino.shape[1][0] = BLOCK_GREEN;
+		basicMino.shape[1][1] = BLOCK_GREEN;
 		break;
 
 	case MINO_Z:
-		basicMino.shape[0][0] = CHAR_BLOCK_RED;
-		basicMino.shape[0][1] = CHAR_BLOCK_RED;
-		basicMino.shape[1][1] = CHAR_BLOCK_RED;
-		basicMino.shape[1][2] = CHAR_BLOCK_RED;
+		basicMino.shape[0][0] = BLOCK_RED;
+		basicMino.shape[0][1] = BLOCK_RED;
+		basicMino.shape[1][1] = BLOCK_RED;
+		basicMino.shape[1][2] = BLOCK_RED;
 		break;
 
 	case MINO_J:
-		basicMino.shape[0][0] = CHAR_BLOCK_BLUE;
-		basicMino.shape[1][0] = CHAR_BLOCK_BLUE;
-		basicMino.shape[1][1] = CHAR_BLOCK_BLUE;
-		basicMino.shape[1][2] = CHAR_BLOCK_BLUE;
+		basicMino.shape[0][0] = BLOCK_BLUE;
+		basicMino.shape[1][0] = BLOCK_BLUE;
+		basicMino.shape[1][1] = BLOCK_BLUE;
+		basicMino.shape[1][2] = BLOCK_BLUE;
 		break;
 
 	case MINO_L:
-		basicMino.shape[0][2] = CHAR_BLOCK_WHITE;
-		basicMino.shape[1][0] = CHAR_BLOCK_WHITE;
-		basicMino.shape[1][1] = CHAR_BLOCK_WHITE;
-		basicMino.shape[1][2] = CHAR_BLOCK_WHITE;
+		basicMino.shape[0][2] = BLOCK_WHITE;
+		basicMino.shape[1][0] = BLOCK_WHITE;
+		basicMino.shape[1][1] = BLOCK_WHITE;
+		basicMino.shape[1][2] = BLOCK_WHITE;
 		break;
 
 	case MINO_T:
-		basicMino.shape[0][1] = CHAR_BLOCK_MAGENTA;
-		basicMino.shape[1][0] = CHAR_BLOCK_MAGENTA;
-		basicMino.shape[1][1] = CHAR_BLOCK_MAGENTA;
-		basicMino.shape[1][2] = CHAR_BLOCK_MAGENTA;
+		basicMino.shape[0][1] = BLOCK_MAGENTA;
+		basicMino.shape[1][0] = BLOCK_MAGENTA;
+		basicMino.shape[1][1] = BLOCK_MAGENTA;
+		basicMino.shape[1][2] = BLOCK_MAGENTA;
 		break;
 	}
 
@@ -671,7 +667,7 @@ bool CanMove(char sourceShape[MINO_SIZE][MINO_SIZE], int futurePosX, int futureP
 			//空白(0)もしくはゲームオーバーライン(9)じゃなかったら
 			//falseを返す
 			if (sourceShape[i][j] != 0 &&
-				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_SPACE &&
+				g_mainMap[futurePosY + i][futurePosX + j] != SPACE &&
 				g_mainMap[futurePosY + i][futurePosX + j] != CHAR_BAR)
 				return false;
 		}
@@ -688,67 +684,67 @@ void OutputChar(char key)
 {
 	switch (key)
 	{
-	case CHAR_SPACE:
+	case SPACE:
 		std::cout << "  ";
 		break;
 
-	case CHAR_WALL:
+	case WALL:
 		std::cout << "\x1b[47m　\x1b[49m";
 		break;
 
-	case CHAR_BLOCK_CYAN:
+	case BLOCK_CYAN:
 		std::cout << "\x1b[36m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_CYAN + GHOSTBLOCK_OFFSET:
+	case BLOCK_CYAN + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[36m■\x1b[39m\x1b[0m";
 		break;
 
-	case CHAR_BLOCK_YELLOW:
+	case BLOCK_YELLOW:
 		std::cout << "\x1b[33m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_YELLOW + GHOSTBLOCK_OFFSET:
+	case BLOCK_YELLOW + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[33m■\x1b[39m\x1b[0m";
 		break;
 
-	case CHAR_BLOCK_GREEN:
+	case BLOCK_GREEN:
 		std::cout << "\x1b[32m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_GREEN + GHOSTBLOCK_OFFSET:
+	case BLOCK_GREEN + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[32m■\x1b[39m\x1b[0m";
 		break;
 
-	case CHAR_BLOCK_RED:
+	case BLOCK_RED:
 		std::cout << "\x1b[31m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_RED + GHOSTBLOCK_OFFSET:
+	case BLOCK_RED + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[31m■\x1b[39m\x1b[0m";
 		break;
 
-	case CHAR_BLOCK_BLUE:
+	case BLOCK_BLUE:
 		std::cout << "\x1b[34m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_BLUE + GHOSTBLOCK_OFFSET:
+	case BLOCK_BLUE + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[34m■\x1b[39m\x1b[0m";
 		break;
 
-	case CHAR_BLOCK_WHITE:
+	case BLOCK_WHITE:
 		std::cout << "\x1b[37m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_WHITE + GHOSTBLOCK_OFFSET:
+	case BLOCK_WHITE + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[37m■\x1b[39m\x1b[0m";
 		break;
 
-	case CHAR_BLOCK_MAGENTA:
+	case BLOCK_MAGENTA:
 		std::cout << "\x1b[35m■\x1b[39m";
 		break;
 
-	case CHAR_BLOCK_MAGENTA + GHOSTBLOCK_OFFSET:
+	case BLOCK_MAGENTA + GHOSTBLOCK_OFFSET:
 		std::cout << "\x1b[7m\x1b[35m■\x1b[39m\x1b[0m";
 		break;
 
@@ -841,7 +837,8 @@ bool CheckLineFull(int y)
 
 	for (i = 1; i < MAIN_WIDTH - 1; i++)
 	{
-		if (g_mainMap[y][i] == 0)
+		if (g_mainMap[y][i] == SPACE ||
+			g_mainMap[y][i] == CHAR_BAR)
 			return false; //空白があったらfalseを返す
 	}
 
